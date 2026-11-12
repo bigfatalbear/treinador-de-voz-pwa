@@ -27,7 +27,7 @@ ambiente real; não deve ser lido como concluído.
 | Segurança | Sem segredos no bundle/repo; URLs assinadas; App Check opcional | Implementado; App Check pendente |
 | Acessibilidade | Teclado, rótulos, contraste, alvos de toque | Revisão manual; axe/Lighthouse pendentes |
 | Windows | Atalho instalado da PWA | Depende do navegador do usuário |
-| GitHub Pages | Deploy por Actions e URL pública | Ativar Pages e confirmar URL |
+| GitHub Pages | Deploy por Actions e URL pública | Publicado e verificado em modo demonstração |
 
 ## Critérios que exigem decisão futura
 

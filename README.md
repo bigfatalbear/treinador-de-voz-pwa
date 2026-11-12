@@ -6,7 +6,7 @@ GitHub Pages.
 
 - **UUID de marca:** `2dfce9de-de4b-57ae-a291-a170c20195cd`
 - **Repositório:** https://github.com/bigfatalbear/treinador-de-voz-pwa
-- **URL pública (após ativar o Pages):** https://bigfatalbear.github.io/treinador-de-voz-pwa/
+- **URL pública (GitHub Pages ativa):** https://bigfatalbear.github.io/treinador-de-voz-pwa/
 - **Projeto Google Cloud/Firebase:** `treinador-de-voz-ccb070` (confirmado pelo responsável; provisionamento pendente)
 - **Região:** `southamerica-east1` (São Paulo)
 
