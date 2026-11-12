@@ -22,8 +22,11 @@
 - Login por e-mail/senha; Google opcional com escopos mínimos.
 - Regente concedido por `app_secrets.regent_emails` via `sync_regent_role`; o cliente não altera
   `role` (privilégio de coluna negado).
+- `set_regent_role` é `security definer`, exige chamador regente, atualiza membro e
+  `regent_emails` na mesma transação e impede remover o último regente.
 - Entrada por `app_secrets.invite_code` validado em `join_choir`.
-- RLS: leitura por membro; escrita de conteúdo por regente; voto apenas no próprio `auth.uid()`.
+- RLS: leitura por membro; escrita de conteúdo e vídeos por regente; voto apenas no próprio
+  `auth.uid()`.
 - Storage privado: leitura por membro; upload de faixas/PDF/aquecimento só pelo regente; chat com
   prefixo do `uid`, `audio/*`, 2 MB e 60 s; stems até 25 MB; PDF até 10 MB.
 - URLs de mídia assinadas por 15 minutos; verificação de sala para áudio de chat.
@@ -49,6 +52,8 @@
 - **Menores:** o MVP é somente para maiores de 18 anos. Se isso mudar, consentimento de
   responsável, retenção e revisão jurídica são obrigatórios.
 - **Direitos autorais:** o app não detecta violação; o regente declara ter autorização.
+- **YouTube:** o player e as miniaturas são carregados de servidores do YouTube, que recebem IP e
+  dados técnicos do navegador. Não há download offline nem controle sobre conteúdo de terceiros.
 - **Plano free:** projeto pausado, cotas e egress podem indisponibilizar o coral; monitore o uso.
 - **Sem garantia absoluta:** nenhum controle aqui elimina todos os riscos. Testes de RLS,
   revisão de código e monitoramento são necessários antes de produção.

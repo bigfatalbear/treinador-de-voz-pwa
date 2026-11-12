@@ -1,4 +1,4 @@
-# TREINADOR DE VOZ
+# CORAL PIBENS ACADEMY
 
 PWA de treino de coral publicada no GitHub Pages, com autenticação, banco, arquivos e operações
 confiáveis no **Supabase free**. O site é 100% estático; nenhum segredo fica no bundle.
@@ -30,9 +30,10 @@ O modo demo não simula RLS. A autorização real só é aplicada com o Supabase
 - Overdub local com download da gravação.
 - Letra sincronizada (LRC) e PDF de partitura para consulta.
 - Áudios de aquecimento enviados pelo regente.
+- Vídeos de treino do YouTube cadastrados pelo regente e reproduzidos sob demanda.
 - Chat geral e por naipe, com texto e áudio de até 60 s.
 - Mural de avisos fixos e enquete de presença.
-- Área do regente: upload de stems/PDF/aquecimento, avisos, enquetes e exclusão.
+- Área do regente: upload de stems/PDF/aquecimento, avisos, enquetes, vídeos e papéis.
 - PWA offline, instalável no Windows via Edge/Chrome (atalho com janela própria).
 - Botão “Ajude o desenvolvedor” com PIX estático e QR Code.
 
@@ -102,7 +103,7 @@ docs/             setup, arquitetura, segurança e aceite
 ## Segurança e privacidade
 
 - Login por e-mail/senha; Google é opcional e depende de OAuth configurado.
-- Papel de regente concedido no servidor por lista de e-mails (`app_secrets.regent_emails`).
+- Papel de regente concedido no servidor por lista de e-mails (`app_secrets.regent_emails`); a área do regente atualiza membro e lista atomicamente pela RPC `set_regent_role`.
 - Entrada no coral por código de convite validado pela RPC `join_choir`.
 - RLS: leitura só para membros; escrita de conteúdo só para regente; voto só no próprio membro.
 - Bucket privado; URLs assinadas por 15 minutos e sem service role no frontend.

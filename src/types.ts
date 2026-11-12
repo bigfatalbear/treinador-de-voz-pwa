@@ -100,6 +100,16 @@ export interface Warmup {
   createdAt?: unknown;
 }
 
+export interface TrainingVideo {
+  id: string;
+  title: string;
+  description: string;
+  youtubeId: string;
+  category: string;
+  voicePart?: VoicePart | null;
+  createdAt?: unknown;
+}
+
 export interface AppUser {
   uid: string;
   name: string;

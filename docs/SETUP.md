@@ -58,6 +58,13 @@ A migration `supabase/migrations/20261112010000_init.sql` cria:
 - bucket privado `media` (25 MiB por arquivo) e policies de Storage;
 - publicação Realtime das tabelas do coral.
 
+A migration `20261112020000_roles_and_videos.sql` adiciona:
+
+- `videos` (título, descrição, ID do YouTube, categoria e naipe opcional) com leitura por membro
+  e escrita pelo regente;
+- RPC `set_regent_role`, que promove/rebaixa um membro e atualiza `regent_emails` na mesma
+  transação, protegendo o último regente.
+
 ## 5. Publicar a Edge Function
 
 ```powershell

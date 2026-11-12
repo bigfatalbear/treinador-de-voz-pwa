@@ -4,13 +4,12 @@ import {
   CloudOff,
   Headphones,
   Mic2,
-  Music2,
   ShieldCheck,
   SlidersHorizontal,
   Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { APP_DESCRIPTION, APP_NAME, APP_UUID } from '../lib/branding';
+import { APP_DESCRIPTION, APP_LOGO_URL, APP_NAME, APP_UUID, APP_VERSION } from '../lib/branding';
 import { Badge, Button, Card, Field, Input } from '../components/ui';
 import { PixButton } from '../components/PixButton';
 
@@ -67,9 +66,11 @@ export function Login() {
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.22),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.14),_transparent_40%)] bg-ink-950">
       <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 py-8">
         <header className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-ink-950 shadow-glow">
-            <Music2 className="h-6 w-6" aria-hidden />
-          </div>
+          <img
+            src={APP_LOGO_URL}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-full bg-ink-900 object-contain ring-1 ring-white/10"
+          />
           <div>
             <p className="text-sm font-semibold tracking-[0.18em] text-white">{APP_NAME}</p>
             <p className="text-xs text-slate-500">Treino de coral offline</p>
@@ -261,7 +262,7 @@ export function Login() {
         <footer className="mt-4 flex flex-col items-center gap-2 text-center">
           <PixButton compact />
           <p className="text-[10px] text-slate-600">
-            {APP_NAME} · v1.0.0 · UUID {APP_UUID}
+            {APP_NAME} · v{APP_VERSION} · UUID {APP_UUID}
           </p>
         </footer>
       </div>

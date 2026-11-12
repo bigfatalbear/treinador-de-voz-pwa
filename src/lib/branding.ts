@@ -1,9 +1,11 @@
-export const APP_NAME = 'TREINADOR DE VOZ';
-export const APP_SHORT_NAME = 'Treinador';
-export const APP_VERSION = '1.0.0';
+export const APP_NAME = 'CORAL PIBENS ACADEMY';
+export const APP_SHORT_NAME = 'PIBENS';
+export const APP_VERSION = '1.1.0';
 export const APP_UUID = '2dfce9de-de4b-57ae-a291-a170c20195cd';
 export const APP_DESCRIPTION =
-  'Treino de coral offline com mixer de naipes, afinador, looping A-B, partitura e gestão do coral.';
+  'Treino de coral offline com mixer de naipes, afinador, looping A-B, partitura, vídeos do YouTube e gestão do coral.';
+export const APP_LOGO = 'coral-pibens-academy.png';
+export const APP_LOGO_URL = `${import.meta.env.BASE_URL}${APP_LOGO}`;
 
 export const CHOIR_ID = import.meta.env.VITE_CHOIR_ID || 'principal';
 export const GITHUB_REPO = 'https://github.com/bigfatalbear/treinador-de-voz-pwa';

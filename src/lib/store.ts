@@ -15,6 +15,7 @@ export const paths = {
   tracks: `${choirPath}/tracks`,
   scores: `${choirPath}/scores`,
   warmups: `${choirPath}/warmups`,
+  videos: `${choirPath}/videos`,
   polls: `${choirPath}/polls`,
   votes: (pollId: string) => `${choirPath}/polls/${pollId}/votes`,
   room: (room: Room) => `${choirPath}/rooms/${room}/messages`
@@ -33,7 +34,8 @@ const camelToSnake: Record<string, string> = {
   audioPath: 'audio_path',
   audioDuration: 'audio_duration',
   eventDate: 'event_date',
-  pdfPath: 'pdf_path'
+  pdfPath: 'pdf_path',
+  youtubeId: 'youtube_id'
 };
 
 const snakeToCamel: Record<string, string> = Object.fromEntries(
@@ -41,7 +43,16 @@ const snakeToCamel: Record<string, string> = Object.fromEntries(
 );
 
 interface TableSpec {
-  table: 'members' | 'notices' | 'tracks' | 'scores' | 'warmups' | 'polls' | 'poll_votes' | 'messages';
+  table:
+    | 'members'
+    | 'notices'
+    | 'tracks'
+    | 'scores'
+    | 'warmups'
+    | 'videos'
+    | 'polls'
+    | 'poll_votes'
+    | 'messages';
   filters: Record<string, string>;
   order: string;
   realtimeFilter?: string;
@@ -80,7 +91,7 @@ function parsePath(path: string): TableSpec {
   }
 
   const table = parts[2] as TableSpec['table'];
-  if (!['notices', 'tracks', 'scores', 'warmups', 'polls'].includes(table)) {
+  if (!['notices', 'tracks', 'scores', 'warmups', 'videos', 'polls'].includes(table)) {
     throw new Error(`Coleção desconhecida: ${path}`);
   }
   return {
@@ -382,7 +393,7 @@ export function ensureLocalSeed(): void {
   const demoTrack: WithId<Track> = {
     id: DEMO_TRACK_ID,
     title: 'Acordes guia (demonstração)',
-    composer: 'TREINADOR DE VOZ',
+    composer: 'CORAL PIBENS ACADEMY',
     bpm: 100,
     demo: true,
     parts: {},
@@ -395,7 +406,7 @@ export function ensureLocalSeed(): void {
   seedIfEmpty<Notice>(paths.notices, [
     {
       id: 'aviso-bem-vindo',
-      title: 'Bem-vindo ao TREINADOR DE VOZ',
+      title: 'Bem-vindo ao CORAL PIBENS ACADEMY',
       body: 'Este é o modo demonstração. Explore o mixer, o looping A-B, o afinador e o chat. Quando o Supabase estiver configurado, os dados passam a ser compartilhados com o coral.',
       authorName: 'Equipe',
       pinned: true,

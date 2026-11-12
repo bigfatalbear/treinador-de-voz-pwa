@@ -19,7 +19,7 @@ import {
   supabase,
   supabaseErrorMessage
 } from '../lib/supabase';
-import { ensureLocalSeed, getMember, saveMember } from '../lib/store';
+import { ensureLocalSeed, getMember, paths, saveMember, updateDocument } from '../lib/store';
 
 type AuthStatus = 'loading' | 'signedOut' | 'onboarding' | 'ready';
 type AppMode = 'demo' | 'supabase';
@@ -41,6 +41,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshMember: () => Promise<void>;
   updateMember: (patch: Partial<Member>) => Promise<void>;
+  setRegentRole: (memberId: string, regent: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -316,6 +317,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [mode, user]);
 
+  const setRegentRole = useCallback(
+    async (memberId: string, regent: boolean) => {
+      if (mode === 'demo') {
+        const role: Role = regent ? 'regente' : 'coralista';
+        await updateDocument<Member>(paths.members, memberId, { role });
+        if (member?.id === memberId) {
+          const nextMember = { ...member, role };
+          cacheMember(nextMember);
+          setMember(nextMember);
+          const session: DemoSession = {
+            role,
+            voicePart: nextMember.voicePart,
+            name: nextMember.name
+          };
+          localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(session));
+        }
+        return;
+      }
+      if (!supabase) throw new Error('Supabase não está configurado.');
+      const { error: roleError } = await supabase.rpc('set_regent_role', {
+        p_member_id: memberId,
+        p_regent: regent
+      });
+      if (roleError) throw new Error(supabaseErrorMessage(roleError));
+      if (member?.id === memberId) await refreshMember();
+    },
+    [member, mode, refreshMember]
+  );
+
   const updateMember = useCallback(
     async (patch: Partial<Member>) => {
       if (!member) return;
@@ -357,7 +387,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       joinChoir,
       signOut,
       refreshMember,
-      updateMember
+      updateMember,
+      setRegentRole
     }),
     [
       status,
@@ -373,7 +404,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       joinChoir,
       signOut,
       refreshMember,
-      updateMember
+      updateMember,
+      setRegentRole
     ]
   );
 

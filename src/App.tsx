@@ -9,15 +9,16 @@ import { Chat } from './pages/Chat';
 import { Mural } from './pages/Mural';
 import { Regent } from './pages/Regent';
 import { Profile } from './pages/Profile';
-import { APP_NAME } from './lib/branding';
-import { Music2 } from 'lucide-react';
+import { APP_LOGO_URL, APP_NAME } from './lib/branding';
 
 function Splash() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-ink-950 text-center">
-      <div className="flex h-14 w-14 animate-pulseSoft items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-accent-500 text-ink-950">
-        <Music2 className="h-7 w-7" aria-hidden />
-      </div>
+      <img
+        src={APP_LOGO_URL}
+        alt=""
+        className="h-16 w-16 animate-pulseSoft rounded-full bg-ink-900 object-contain ring-1 ring-white/10"
+      />
       <div>
         <p className="text-sm font-semibold tracking-[0.18em] text-white">{APP_NAME}</p>
         <p className="mt-1 text-xs text-slate-500">Preparando o treino…</p>

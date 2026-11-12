@@ -25,7 +25,9 @@ atual.
 - **Autorização por linha de membro:** `public.members` guarda `role` e `voice_part`. As policies
   chamam `is_member`, `is_regent` e `can_use_room`; o cliente não pode inserir nem trocar o papel.
 - **Regente por lista de e-mails:** `sync_regent_role` compara o e-mail do JWT com
-  `app_secrets.regent_emails` e grava o papel. O cliente não se promove.
+  `app_secrets.regent_emails` e grava o papel. O cliente não se promove. A RPC `set_regent_role`
+  permite que um regente promova/rebaixe outro membro, atualizando `members.role` e a lista de
+  e-mails na mesma transação; o último regente não pode ser removido.
 - **Entrada por convite:** `join_choir` valida `app_secrets.invite_code` e cria/atualiza o membro.
 - **Mídia privada:** leitura por `createSignedUrl` de 15 minutos; o bucket `media` não é público.
 - **Adaptador de dados:** `src/lib/store.ts` mantém a API antiga (`paths`, `watchCollection`,
@@ -43,6 +45,7 @@ public.notices               title, body, author_name, pinned
 public.tracks                title, composer, bpm, lyrics, demo, parts(jsonb)
 public.scores                title, pdf_path
 public.warmups               title, description, audio_path, category
+public.videos                title, description, youtube_id, category, voice_part
 public.polls                 title, event_date, author_name
 public.poll_votes            poll_id, member_id, value, name, updated_at
 public.messages              choir_id, room, text|audio_path, audio_duration,
@@ -57,7 +60,8 @@ acessa todas. `poll_votes` usa a chave composta `(poll_id, member_id)`.
 
 - `members`: `select` do próprio membro ou de todos para o regente; `update` apenas de
   `name`, `voice_part` e `updated_at` via privilégios de coluna; sem `insert`/`delete` direto.
-- `notices`, `tracks`, `scores`, `warmups`, `polls`: leitura por membro, escrita pelo regente.
+- `notices`, `tracks`, `scores`, `warmups`, `videos`, `polls`: leitura por membro, escrita pelo
+  regente.
 - `poll_votes`: voto/atualização apenas do próprio `auth.uid()`; regente pode remover.
 - `messages`: leitura/escrita apenas nas salas permitidas; remoção pelo autor ou regente.
 - `app_secrets`: `revoke all` para `anon`/`authenticated`; somente funções `security definer`.
@@ -76,6 +80,16 @@ acessa todas. `poll_votes` usa a chave composta `(poll_id, member_id)`.
 - **Afinador:** `getUserMedia` + autocorrelação; o áudio não sai do dispositivo.
 - **Overdub:** `MediaRecorder` grava a voz junto com a base; o blob fica local e pode ser baixado.
 - **Offline:** stems baixados viram blobs no IndexedDB. O player prefere o cache antes da rede.
+
+## Vídeos do YouTube
+
+- O banco guarda apenas o ID de 11 caracteres, título, categoria, naipe opcional e orientações.
+- A UI aceita `watch`, `youtu.be`, `shorts`, `embed`, `live` e IDs diretos.
+- O player usa `youtube-nocookie.com` e só é criado quando o vídeo é aberto; a miniatura é
+  carregada de `i.ytimg.com`.
+- Vídeos não entram no cache offline. O restante do treino continua disponível sem rede.
+- O YouTube é um terceiro: ao abrir o player/miniatura, o navegador faz requisições aos servidores
+  dele. O coral deve usar links autorizados e adequados à política de privacidade.
 
 ## Offline e PWA
 

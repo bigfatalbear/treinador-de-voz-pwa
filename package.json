@@ -1,11 +1,11 @@
 {
   "name": "treinador-de-voz-pwa",
   "private": true,
-  "version": "1.0.0",
-  "description": "TREINADOR DE VOZ - PWA de treino de coral com offline, mixer de naipes, afinador e gestão.",
+  "version": "1.1.0",
+  "description": "CORAL PIBENS ACADEMY - PWA de treino de coral com offline, mixer de naipes, afinador e gestão.",
   "type": "module",
   "branding": {
-    "product": "TREINADOR DE VOZ",
+    "product": "CORAL PIBENS ACADEMY",
     "uuid": "2dfce9de-de4b-57ae-a291-a170c20195cd"
   },
   "engines": {

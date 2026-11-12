@@ -10,12 +10,20 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'robots.txt'],
+      includeAssets: [
+        'favicon.png',
+        'apple-touch-icon.png',
+        'icon-192.png',
+        'icon-512.png',
+        'icon-maskable-512.png',
+        'coral-pibens-academy.png',
+        'robots.txt'
+      ],
       manifest: {
-        name: 'TREINADOR DE VOZ',
-        short_name: 'Treinador',
+        name: 'CORAL PIBENS ACADEMY',
+        short_name: 'PIBENS',
         description:
-          'Treino de coral offline com mixer de naipes, afinador, looping A-B, partitura e gestão do coral.',
+          'Treino de coral offline com mixer de naipes, afinador, looping A-B, partitura, vídeos do YouTube e gestão do coral.',
         lang: 'pt-BR',
         theme_color: '#0b1020',
         background_color: '#0b1020',
@@ -29,7 +37,7 @@ export default defineConfig({
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           {
-            src: 'icon-512.png',
+            src: 'icon-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'

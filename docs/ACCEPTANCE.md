@@ -10,6 +10,8 @@ decisão futura; não deve ser lido como concluído.
 | Auth | Cadastro e login por e-mail/senha; Google opcional | E-mail/senha verificado na API e na UI; Google não configurado |
 | Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test e UI |
 | Papéis | Regente por lista de e-mails; cliente não se promove | Verificado por smoke test |
+| Papéis | Regente promove/rebaixa membro; lista e papel mudam juntos; último regente protegido | Verificado por smoke SQL transacional |
+| Vídeos | Regente publica link do YouTube; membro lê e player abre sob demanda | Implementado; UI e deploy a validar |
 | RLS | Coralista lê conteúdo, não cria aviso e não altera `role` | Verificado por smoke test |
 | Chat | Salas geral + 4 naipes; coralista restrito ao próprio naipe | Verificado por smoke test |
 | Presença | Voto único por membro, alterável | RLS verificada; fluxo de UI a validar |

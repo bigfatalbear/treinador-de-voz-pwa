@@ -8,9 +8,12 @@ import {
   Music2,
   Plus,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   Upload,
-  Users
+  UserCog,
+  Users,
+  Video
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -24,7 +27,16 @@ import {
 import { CHOIR_ID, LIMITS } from '../lib/branding';
 import { deleteStoredFile, uploadFile } from '../lib/media';
 import { bytesToSize, cn, newId, sanitizeFileName } from '../lib/utils';
-import type { Member, Notice, Poll, Score, Track, VoicePart, Warmup } from '../types';
+import type {
+  Member,
+  Notice,
+  Poll,
+  Score,
+  Track,
+  TrainingVideo,
+  VoicePart,
+  Warmup
+} from '../types';
 import { VOICE_PARTS, VOICE_PART_LABEL } from '../types';
 import {
   Badge,
@@ -38,16 +50,18 @@ import {
   Select,
   TextArea
 } from '../components/ui';
+import { VideoManager } from '../components/TrainingVideos';
 
-type Tab = 'faixas' | 'partituras' | 'mural' | 'presenca' | 'aquecimento' | 'membros';
+type Tab = 'faixas' | 'partituras' | 'videos' | 'mural' | 'presenca' | 'aquecimento' | 'membros';
 
 const tabs: Array<{ id: Tab; label: string; icon: typeof Music2 }> = [
   { id: 'faixas', label: 'Faixas', icon: Music2 },
   { id: 'partituras', label: 'Partituras', icon: FileText },
+  { id: 'videos', label: 'Vídeos', icon: Video },
   { id: 'mural', label: 'Mural', icon: Megaphone },
   { id: 'presenca', label: 'Presença', icon: CalendarDays },
   { id: 'aquecimento', label: 'Aquecimento', icon: Mic2 },
-  { id: 'membros', label: 'Membros', icon: Users }
+  { id: 'membros', label: 'Membros e papéis', icon: Users }
 ];
 
 const emptyFiles: Record<VoicePart, File | null> = {
@@ -58,13 +72,15 @@ const emptyFiles: Record<VoicePart, File | null> = {
 };
 
 export function Regent() {
-  const { member } = useAuth();
+  const { member, setRegentRole } = useAuth();
   const { notify } = useToast();
   const [tab, setTab] = useState<Tab>('faixas');
   const [tracks, setTracks] = useState<WithId<Track>[]>([]);
   const [scores, setScores] = useState<WithId<Score>[]>([]);
   const [warmups, setWarmups] = useState<WithId<Warmup>[]>([]);
+  const [videos, setVideos] = useState<WithId<TrainingVideo>[]>([]);
   const [members, setMembers] = useState<WithId<Member>[]>([]);
+  const [roleBusy, setRoleBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (member?.role !== 'regente') return;
@@ -72,10 +88,36 @@ export function Regent() {
       watchCollection<Track>(paths.tracks, setTracks),
       watchCollection<Score>(paths.scores, setScores),
       watchCollection<Warmup>(paths.warmups, setWarmups),
+      watchCollection<TrainingVideo>(paths.videos, setVideos),
       watchCollection<Member>(paths.members, setMembers)
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [member?.role]);
+
+  const regentCount = members.filter((item) => item.role === 'regente').length;
+
+  const changeRole = async (item: WithId<Member>) => {
+    const makeRegent = item.role !== 'regente';
+    const question = makeRegent
+      ? `Tornar ${item.name} regente? A pessoa poderá gerenciar todo o coral.`
+      : `Remover o papel de regente de ${item.name}?`;
+    if (!window.confirm(question)) return;
+    setRoleBusy(item.id);
+    try {
+      await setRegentRole(item.id, makeRegent);
+      notify(
+        makeRegent ? `${item.name} agora é regente.` : `${item.name} agora é coralista.`,
+        'success'
+      );
+    } catch (error) {
+      notify(
+        error instanceof Error ? error.message : 'Não foi possível alterar o papel.',
+        'error'
+      );
+    } finally {
+      setRoleBusy(null);
+    }
+  };
 
   if (!member || member.role !== 'regente') {
     return (
@@ -101,8 +143,8 @@ export function Regent() {
         <p className="text-xs uppercase tracking-[0.18em] text-brand-300">Gestão</p>
         <h1 className="mt-1 text-2xl font-bold text-white">Área do regente</h1>
         <p className="mt-1 text-xs text-slate-500">
-          Envie faixas separadas, partituras, avisos, enquetes e aquecimentos. Você também pode
-          apagar conteúdos do coral.
+          Envie faixas, partituras, vídeos, avisos, enquetes e aquecimentos. Você também pode
+          apagar conteúdos e definir quem ajuda na regência do coral.
         </p>
       </div>
 
@@ -227,6 +269,8 @@ export function Regent() {
         </div>
       ) : null}
 
+      {tab === 'videos' ? <VideoManager videos={videos} /> : null}
+
       {tab === 'mural' ? (
         <div className="space-y-4">
           <NoticeForm
@@ -237,7 +281,7 @@ export function Regent() {
             <SectionTitle title="Como funciona" />
             <p className="text-xs leading-relaxed text-slate-500">
               Avisos fixos aparecem no topo do mural. Coralistas só podem ler; a escrita é validada
-              pelas Security Rules como papel de regente.
+              pelas policies de RLS como papel de regente.
             </p>
           </Card>
         </div>
@@ -295,30 +339,66 @@ export function Regent() {
       {tab === 'membros' ? (
         <Card>
           <SectionTitle
-            title="Membros"
-            subtitle="Papéis e naipes são gravados no registro de membro"
+            title="Membros e papéis"
+            subtitle="Promova ou rebaixe regentes com segurança"
             action={<Badge tone="brand">{members.length}</Badge>}
           />
           {members.length === 0 ? (
-            <EmptyState title="Nenhum membro" description="Os membros aparecem após entrarem com o código do coral." />
+            <EmptyState
+              title="Nenhum membro"
+              description="Os membros aparecem após entrarem com o código do coral."
+            />
           ) : (
             <ul className="divide-y divide-white/5">
-              {members.map((item) => (
-                <li key={item.id} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-100">{item.name}</p>
-                    <p className="text-[11px] text-slate-500">
-                      {item.email} · {VOICE_PART_LABEL[item.voicePart]}
-                    </p>
-                  </div>
-                  <Badge tone={item.role === 'regente' ? 'accent' : 'neutral'}>{item.role}</Badge>
-                </li>
-              ))}
+              {members.map((item) => {
+                const isRegent = item.role === 'regente';
+                const isSelf = item.id === member?.id;
+                const isLastRegent = isRegent && regentCount <= 1;
+                return (
+                  <li
+                    key={item.id}
+                    className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-100">
+                        {item.name}
+                        {isSelf ? <span className="ml-1 text-[11px] text-slate-500">(você)</span> : null}
+                      </p>
+                      <p className="truncate text-[11px] text-slate-500">
+                        {item.email} · {VOICE_PART_LABEL[item.voicePart]}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge tone={isRegent ? 'accent' : 'neutral'}>{item.role}</Badge>
+                      <Button
+                        variant={isRegent ? 'danger' : 'secondary'}
+                        size="sm"
+                        loading={roleBusy === item.id}
+                        disabled={isLastRegent}
+                        onClick={() => void changeRole(item)}
+                        aria-label={
+                          isRegent
+                            ? `Remover papel de regente de ${item.name}`
+                            : `Tornar ${item.name} regente`
+                        }
+                      >
+                        {isRegent ? (
+                          <UserCog className="h-3.5 w-3.5" aria-hidden />
+                        ) : (
+                          <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                        {isRegent ? 'Tornar coralista' : 'Tornar regente'}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
           <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-            A lista é somente leitura neste MVP. Novos regentes entram pela lista de e-mails
-            configurada no servidor.
+            A alteração atualiza o papel do membro e a lista de e-mails autorizados no servidor. O
+            último regente não pode ser rebaixado. Novos regentes precisam entrar novamente para
+            sincronizar a sessão em outros dispositivos.
           </p>
         </Card>
       ) : null}

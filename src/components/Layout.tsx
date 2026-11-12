@@ -3,7 +3,6 @@ import {
   BookOpen,
   Home,
   MessageCircle,
-  Music2,
   SlidersHorizontal,
   UserRound,
   Wifi,
@@ -11,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useOnline } from '../lib/useOnline';
-import { APP_NAME, APP_UUID, APP_VERSION } from '../lib/branding';
+import { APP_LOGO_URL, APP_NAME, APP_UUID, APP_VERSION } from '../lib/branding';
 import { cn, initials } from '../lib/utils';
 import { PixButton } from './PixButton';
 
@@ -35,9 +34,11 @@ export function Layout() {
     <div className="min-h-dvh bg-ink-950">
       <header className="sticky top-0 z-40 border-b border-white/5 bg-ink-950/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-ink-950 shadow-glow">
-            <Music2 className="h-5 w-5" aria-hidden />
-          </div>
+          <img
+            src={APP_LOGO_URL}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-full bg-ink-900 object-contain ring-1 ring-white/10"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold tracking-wide text-white">{APP_NAME}</p>
             <p className="truncate text-[11px] text-slate-500">
@@ -100,7 +101,7 @@ export function Layout() {
       </nav>
 
       <p className="sr-only">
-        TREINADOR DE VOZ, versão {APP_VERSION}, identificador {APP_UUID}.
+        {APP_NAME}, versão {APP_VERSION}, identificador {APP_UUID}.
       </p>
     </div>
   );

@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { paths, watchCollection, type WithId } from '../lib/store';
-import type { Score, Track, VoicePart, Warmup } from '../types';
+import type { Score, Track, TrainingVideo, VoicePart, Warmup } from '../types';
 import { VOICE_PARTS, VOICE_PART_LABEL } from '../types';
 import { ChoirPlayer } from '../lib/audio';
 import { cacheTrack, isTrackCached } from '../lib/cache';
@@ -40,6 +40,7 @@ import { Tuner } from '../components/Tuner';
 import { Lyrics } from '../components/Lyrics';
 import { AudioRecorder } from '../components/AudioRecorder';
 import { MessageAudio } from '../components/MessageAudio';
+import { VideoLibrary } from '../components/TrainingVideos';
 
 const initialVolumes: Record<VoicePart, number> = {
   soprano: 0.8,
@@ -54,6 +55,7 @@ export function Practice() {
   const [tracks, setTracks] = useState<WithId<Track>[]>([]);
   const [scores, setScores] = useState<WithId<Score>[]>([]);
   const [warmups, setWarmups] = useState<WithId<Warmup>[]>([]);
+  const [videos, setVideos] = useState<WithId<TrainingVideo>[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [loadingTrack, setLoadingTrack] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -85,6 +87,7 @@ export function Practice() {
   useEffect(() => watchCollection<Track>(paths.tracks, setTracks), []);
   useEffect(() => watchCollection<Score>(paths.scores, setScores), []);
   useEffect(() => watchCollection<Warmup>(paths.warmups, setWarmups), []);
+  useEffect(() => watchCollection<TrainingVideo>(paths.videos, setVideos), []);
 
   useEffect(() => {
     if (tracks.length === 0) {
@@ -499,6 +502,8 @@ export function Practice() {
           </div>
         )}
       </Card>
+
+      <VideoLibrary videos={videos} />
 
       {track ? (
         <Card>
