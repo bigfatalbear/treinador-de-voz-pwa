@@ -296,7 +296,7 @@ export function Regent() {
         <Card>
           <SectionTitle
             title="Membros"
-            subtitle="Papéis e naipes são gravados no documento de membro"
+            subtitle="Papéis e naipes são gravados no registro de membro"
             action={<Badge tone="brand">{members.length}</Badge>}
           />
           {members.length === 0 ? (

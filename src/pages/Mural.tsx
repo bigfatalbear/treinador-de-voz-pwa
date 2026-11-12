@@ -78,7 +78,7 @@ export function Mural() {
         {sortedNotices.length === 0 ? (
           <EmptyState
             title="Nenhum aviso"
-            description="Quando o regente publicar um comunicado, ele aparece aqui e fica disponível offline."
+            description="Quando o regente publicar um comunicado, ele aparece aqui para todo o coral."
           />
         ) : (
           <ul className="space-y-3">
@@ -152,8 +152,8 @@ export function Mural() {
           </div>
         )}
         <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-          A presença é registrada por membro. Em modo offline, o voto fica na fila do Supabase e é
-          sincronizado quando a conexão volta.
+          A presença é registrada por membro e validada pela RLS. Sem conexão, o voto não é enviado;
+          tente novamente quando voltar online.
         </p>
       </Card>
     </div>

@@ -238,8 +238,7 @@ export function Chat() {
 
           <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-600">
             <MessageCircle className="h-3 w-3" aria-hidden />
-            Se estiver offline, a mensagem fica na fila do dispositivo e é enviada quando a conexão
-            voltar.
+            Se estiver offline, a mensagem não é enviada. Conecte-se e tente novamente.
           </p>
         </div>
       </Card>

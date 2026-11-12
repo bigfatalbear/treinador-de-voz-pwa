@@ -107,7 +107,7 @@ export function Onboarding() {
           <div className="mt-4 flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[11px] leading-relaxed text-slate-500">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-400" aria-hidden />
             <span>
-              Seu papel e naipe ficam em um documento de membro. O cliente não pode alterar o
+              Seu papel e naipe ficam no registro de membro. O cliente não pode alterar o
               próprio papel; apenas o servidor concede o papel de regente.
             </span>
           </div>

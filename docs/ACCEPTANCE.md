@@ -7,8 +7,8 @@ decisão futura; não deve ser lido como concluído.
 |---|---|---|
 | Build | `npm run typecheck`, `npm test` e `npm run build` passam | Verificado localmente |
 | Backend | Migration, bucket, policies e Edge Function aplicados | Verificado no projeto Supabase |
-| Auth | Cadastro e login por e-mail/senha; Google opcional | E-mail/senha verificado; Google não configurado |
-| Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test |
+| Auth | Cadastro e login por e-mail/senha; Google opcional | E-mail/senha verificado na API e na UI; Google não configurado |
+| Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test e UI |
 | Papéis | Regente por lista de e-mails; cliente não se promove | Verificado por smoke test |
 | RLS | Coralista lê conteúdo, não cria aviso e não altera `role` | Verificado por smoke test |
 | Chat | Salas geral + 4 naipes; coralista restrito ao próprio naipe | Verificado por smoke test |
@@ -30,7 +30,7 @@ decisão futura; não deve ser lido como concluído.
 | Privacidade | Sem Analytics; retenção documentada; exclusão de conta | Implementado; limpeza automática pendente |
 | PIX | Botão visível, QR, copia-e-cola e CRC16 | Implementado; teste no app do banco pendente |
 | Acessibilidade | Teclado, rótulos, contraste, alvos de toque | Revisão manual; axe/Lighthouse pendentes |
-| GitHub Pages | Deploy por Actions com backend Supabase | Secrets configurados; deploy final a confirmar |
+| GitHub Pages | Deploy por Actions com backend Supabase | Publicado e verificado (run 43127153839) |
 
 ## Critérios que exigem decisão futura
 
