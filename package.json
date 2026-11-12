@@ -20,13 +20,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "firebase": "^11.0.0",
+    "@supabase/supabase-js": "^2.119.0",
     "idb-keyval": "^6.2.1",
     "lucide-react": "^0.468.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^7.18.5",
     "tone": "^15.0.0"
   },
   "devDependencies": {

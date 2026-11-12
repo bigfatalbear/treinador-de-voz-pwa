@@ -1,9 +1,10 @@
-import { getDownloadURL, ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval';
-import { isFirebaseConfigured, storage, callFunction } from './firebase';
+import { isSupabaseConfigured, mediaBucket, supabase } from './supabase';
 import { newId } from './utils';
 
 const objectUrls = new Map<string, string>();
+const signedUrls = new Map<string, { url: string; expiresAt: number }>();
+const SIGNED_URL_SECONDS = 900;
 
 export interface UploadProgress {
   (fraction: number): void;
@@ -14,28 +15,21 @@ export async function uploadFile(
   file: Blob,
   onProgress?: UploadProgress
 ): Promise<string> {
-  if (!isFirebaseConfigured || !storage) {
+  if (!isSupabaseConfigured || !supabase) {
     const key = `upload:${newId()}`;
     await idbSet(key, file);
     onProgress?.(1);
     return `demo://${key}`;
   }
-  const target = ref(storage, path);
-  const task = uploadBytesResumable(target, file, {
-    contentType: file.type || 'application/octet-stream'
+
+  onProgress?.(0.1);
+  const { error } = await supabase.storage.from(mediaBucket).upload(path, file, {
+    cacheControl: '3600',
+    contentType: file.type || 'application/octet-stream',
+    upsert: false
   });
-  await new Promise<void>((resolve, reject) => {
-    task.on(
-      'state_changed',
-      (snapshot) => {
-        if (snapshot.totalBytes > 0) {
-          onProgress?.(snapshot.bytesTransferred / snapshot.totalBytes);
-        }
-      },
-      reject,
-      () => resolve()
-    );
-  });
+  if (error) throw error;
+  onProgress?.(1);
   return path;
 }
 
@@ -54,16 +48,22 @@ export async function resolveMediaUrl(path: string | undefined | null): Promise<
     objectUrls.set(path, url);
     return url;
   }
-  if (!isFirebaseConfigured || !storage) {
+  if (!isSupabaseConfigured || !supabase) {
     throw new Error('Armazenamento não configurado.');
   }
-  try {
-    const result = await callFunction<{ url: string }>('getMediaUrl', { path });
-    if (result?.url) return result.url;
-  } catch (error) {
-    console.warn('getMediaUrl indisponível; usando URL do SDK do Storage.', error);
-  }
-  return getDownloadURL(ref(storage, path));
+
+  const cached = signedUrls.get(path);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.url;
+
+  const { data, error } = await supabase.storage
+    .from(mediaBucket)
+    .createSignedUrl(path, SIGNED_URL_SECONDS);
+  if (error || !data?.signedUrl) throw error || new Error('Não foi possível gerar a URL da mídia.');
+  signedUrls.set(path, {
+    url: data.signedUrl,
+    expiresAt: Date.now() + SIGNED_URL_SECONDS * 1000
+  });
+  return data.signedUrl;
 }
 
 export async function deleteStoredFile(path: string | undefined): Promise<void> {
@@ -75,10 +75,8 @@ export async function deleteStoredFile(path: string | undefined): Promise<void> 
     objectUrls.delete(path);
     return;
   }
-  if (!isFirebaseConfigured || !storage) return;
-  try {
-    await deleteObject(ref(storage, path));
-  } catch (error) {
-    console.warn('Falha ao apagar arquivo do Storage.', error);
-  }
+  if (!isSupabaseConfigured || !supabase) return;
+  const { error } = await supabase.storage.from(mediaBucket).remove([path]);
+  if (error) console.warn('Falha ao apagar arquivo do Storage.', error);
+  signedUrls.delete(path);
 }

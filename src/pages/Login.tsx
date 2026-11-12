@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { APP_DESCRIPTION, APP_NAME, APP_UUID } from '../lib/branding';
-import { Badge, Button, Card } from '../components/ui';
+import { Badge, Button, Card, Field, Input } from '../components/ui';
 import { PixButton } from '../components/PixButton';
 
 const features = [
@@ -24,8 +24,44 @@ const features = [
 ];
 
 export function Login() {
-  const { mode, error, authenticating, signInGoogle, signInDemo, clearError } = useAuth();
+  const {
+    mode,
+    error,
+    authenticating,
+    googleEnabled,
+    signInEmail,
+    signUpEmail,
+    signInGoogle,
+    signInDemo,
+    clearError
+  } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  const submit = async () => {
+    setLocalError('');
+    if (creating && name.trim().length < 2) {
+      setLocalError('Informe seu nome.');
+      return;
+    }
+    if (!email.includes('@')) {
+      setLocalError('Informe um e-mail válido.');
+      return;
+    }
+    if (password.length < 6) {
+      setLocalError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (creating) {
+      await signUpEmail(email, password, name);
+    } else {
+      await signInEmail(email, password);
+    }
+  };
 
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.22),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.14),_transparent_40%)] bg-ink-950">
@@ -42,7 +78,7 @@ export function Login() {
 
         <main className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[1.05fr_0.95fr]">
           <section>
-            <Badge tone="brand">PWA · GitHub Pages · Firebase</Badge>
+            <Badge tone="brand">PWA · GitHub Pages · Supabase</Badge>
             <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl">
               Ensaie com o coral,
               <span className="bg-gradient-to-r from-brand-300 to-accent-300 bg-clip-text text-transparent">
@@ -74,39 +110,122 @@ export function Login() {
           </section>
 
           <Card className="bg-ink-850/90">
-            <h2 className="text-lg font-semibold text-white">Entrar</h2>
+            <h2 className="text-lg font-semibold text-white">{creating ? 'Criar conta' : 'Entrar'}</h2>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              {mode === 'firebase'
-                ? 'Use sua conta Google autorizada pelo coral. O acesso é controlado por papéis no servidor.'
-                : 'O Firebase ainda não está configurado. Use o modo demonstração para conhecer o app; os dados ficam apenas neste navegador.'}
+              {mode === 'supabase'
+                ? 'Use e-mail e senha. O acesso ao coral é liberado pelo código de convite do regente.'
+                : 'O Supabase ainda não está configurado. Use o modo demonstração para conhecer o app; os dados ficam apenas neste navegador.'}
             </p>
 
-            {error ? (
+            {error || localError ? (
               <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-                <p>{error}</p>
-                <button type="button" onClick={clearError} className="mt-2 underline">
+                <p>{error || localError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalError('');
+                    clearError();
+                  }}
+                  className="mt-2 underline"
+                >
                   Fechar
                 </button>
               </div>
             ) : null}
 
-            <div className="mt-5 space-y-3">
-              {mode === 'firebase' ? (
-                <Button onClick={() => void signInGoogle()} loading={authenticating} className="w-full" size="lg">
-                  <GoogleMark />
-                  Entrar com Google
+            {mode === 'supabase' ? (
+              <form
+                className="mt-5 space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submit();
+                }}
+              >
+                {creating ? (
+                  <Field label="Nome">
+                    <Input
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Seu nome"
+                      autoComplete="name"
+                      maxLength={80}
+                    />
+                  </Field>
+                ) : null}
+                <Field label="E-mail">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="voce@exemplo.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    required
+                  />
+                </Field>
+                <Field label="Senha" hint="Mínimo de 6 caracteres.">
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Sua senha"
+                    autoComplete={creating ? 'new-password' : 'current-password'}
+                    minLength={6}
+                    required
+                  />
+                </Field>
+                <Button type="submit" loading={authenticating} className="w-full" size="lg">
+                  {creating ? 'Criar conta' : 'Entrar'}
                 </Button>
-              ) : (
-                <>
-                  <Button onClick={() => signInDemo('regente')} className="w-full" size="lg">
-                    Entrar como regente (demo)
-                  </Button>
-                  <Button onClick={() => signInDemo('coralista')} variant="secondary" className="w-full" size="lg">
-                    Entrar como coralista (demo)
-                  </Button>
-                </>
-              )}
-            </div>
+
+                {googleEnabled ? (
+                  <>
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-600">
+                      <span className="h-px flex-1 bg-white/10" />
+                      ou
+                      <span className="h-px flex-1 bg-white/10" />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void signInGoogle()}
+                      loading={authenticating}
+                      className="w-full"
+                      size="lg"
+                    >
+                      <GoogleMark />
+                      Entrar com Google
+                    </Button>
+                  </>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreating((current) => !current);
+                    setLocalError('');
+                    clearError();
+                  }}
+                  className="w-full text-center text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                >
+                  {creating ? 'Já tenho conta. Entrar' : 'Ainda não tenho conta. Criar conta'}
+                </button>
+              </form>
+            ) : (
+              <div className="mt-5 space-y-3">
+                <Button onClick={() => signInDemo('regente')} className="w-full" size="lg">
+                  Entrar como regente (demo)
+                </Button>
+                <Button
+                  onClick={() => signInDemo('coralista')}
+                  variant="secondary"
+                  className="w-full"
+                  size="lg"
+                >
+                  Entrar como coralista (demo)
+                </Button>
+              </div>
+            )}
 
             <div className="mt-4 flex items-start gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[11px] leading-relaxed text-slate-500">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-400" aria-hidden />
@@ -128,10 +247,10 @@ export function Login() {
                 <p>Identificador de marca: {APP_UUID}</p>
                 <p>
                   O GitHub Pages entrega apenas arquivos estáticos. Login, banco, arquivos e APIs
-                  confiáveis rodam no Firebase/Google Cloud, nunca no navegador.
+                  confiáveis rodam no Supabase, nunca no navegador.
                 </p>
                 <p>
-                  Sem configuração do Firebase, nenhum dado sai deste dispositivo. Nenhum segredo é
+                  Sem configuração do Supabase, nenhum dado sai deste dispositivo. Nenhum segredo é
                   embutido no JavaScript.
                 </p>
               </div>

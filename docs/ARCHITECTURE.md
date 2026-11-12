@@ -6,46 +6,63 @@
 Navegador
   ├─ PWA React/TS/Tailwind (GitHub Pages, estático)
   ├─ Web Audio/Tone.js + IndexedDB (áudio, cache offline)
-  └─ SDK Firebase (Auth, Firestore offline, Storage)
+  └─ SDK Supabase (Auth, Postgres, Storage, Realtime, Functions)
         │
-        ├─ Firebase Authentication (Google)
-        ├─ Cloud Firestore (dados, offline-first, Security Rules)
-        ├─ Cloud Storage (stems, PDFs, áudios de chat)
-        └─ Cloud Functions 2ª geração (claims, convite, URL assinada, exclusão)
+        ├─ Supabase Auth (e-mail/senha; Google opcional)
+        ├─ Postgres + RLS (membros, conteúdo, votos, chat)
+        ├─ Storage privado (stems, PDFs, áudios de chat)
+        └─ Edge Function (exclusão de conta)
 ```
 
-O GitHub Pages não executa backend. Toda confiança fica no Firebase/Google Cloud; o bundle
-contém apenas identificadores públicos. Firebase Hosting não é usado em produção.
+O GitHub Pages não executa backend. Toda confiança fica no Supabase; o bundle contém apenas a URL
+do projeto e a chave publicável (`anon`). Não há Firebase, Firestore ou Cloud Functions no fluxo
+atual.
 
 ## Decisões
 
-- **Híbrido enxuto:** BaaS para leitura/escrita em tempo real e offline; Functions apenas para
-  operações que exigem Admin SDK ou segredo.
-- **Autorização por documento de membro:** `choirs/{choirId}/members/{uid}` guarda `role` e
-  `voicePart`. As regras leem esse documento; custom claims são um reforço, não a única fonte.
-- **Regente por lista de e-mails:** `syncRegentRole` compara o e-mail autenticado com o segredo
-  `REGENT_EMAILS` e grava o papel. O cliente não pode se promover.
-- **Entrada por convite:** `joinChoir` valida `CHOIR_INVITE_CODE` e cria o membro.
-- **Mídia privada:** leitura por URL assinada de 15 minutos emitida por `getMediaUrl`; o SDK do
-  Storage é fallback apenas se a Function não estiver disponível.
-- **Sem Analytics de comportamento:** logs e erros no servidor, sem perfil de uso.
+- **BaaS enxuto:** o Postgres/Realtime resolve dados e tempo real; a Edge Function existe apenas
+  para operações que exigem a service role.
+- **Autorização por linha de membro:** `public.members` guarda `role` e `voice_part`. As policies
+  chamam `is_member`, `is_regent` e `can_use_room`; o cliente não pode inserir nem trocar o papel.
+- **Regente por lista de e-mails:** `sync_regent_role` compara o e-mail do JWT com
+  `app_secrets.regent_emails` e grava o papel. O cliente não se promove.
+- **Entrada por convite:** `join_choir` valida `app_secrets.invite_code` e cria/atualiza o membro.
+- **Mídia privada:** leitura por `createSignedUrl` de 15 minutos; o bucket `media` não é público.
+- **Adaptador de dados:** `src/lib/store.ts` mantém a API antiga (`paths`, `watchCollection`,
+  `addDocument`, etc.) e traduz caminhos para tabelas. Isso preservou as páginas durante a migração.
+- **Demo local:** sem as variáveis Supabase, o mesmo adaptador usa `localStorage`; não é uma cópia
+  das policies e não deve ser usado para validar segurança.
+- **Sem Analytics de comportamento:** logs e erros ficam no Supabase; sem perfil de uso.
 
 ## Modelo de dados
 
 ```
-choirs/{choirId}
-  members/{uid}            name, email, role, voicePart, createdAt, updatedAt
-  notices/{id}             title, body, authorName, pinned
-  tracks/{id}              title, composer, bpm, lyrics, parts{soprano..baixo}
-  scores/{id}              title, pdfPath
-  warmups/{id}             title, description, category, audioPath
-  polls/{id}               title, eventDate, authorName
-    votes/{uid}            value(sim|nao|talvez), name, updatedAt
-  rooms/{room}/messages/{id}  room, text|audioPath, audioDuration, authorId, authorName
+auth.users
+  └─ public.members          id, choir_id, name, email, role, voice_part
+public.notices               title, body, author_name, pinned
+public.tracks                title, composer, bpm, lyrics, demo, parts(jsonb)
+public.scores                title, pdf_path
+public.warmups               title, description, audio_path, category
+public.polls                 title, event_date, author_name
+public.poll_votes            poll_id, member_id, value, name, updated_at
+public.messages              choir_id, room, text|audio_path, audio_duration,
+                             author_id, author_name, expires_at
+public.app_secrets           key, value (sem acesso pelo cliente)
 ```
 
 `room` é `geral` ou um dos quatro naipes. Coralista lê/escreve `geral` e o próprio naipe; regente
-acessa todas.
+acessa todas. `poll_votes` usa a chave composta `(poll_id, member_id)`.
+
+## RLS e RPCs
+
+- `members`: `select` do próprio membro ou de todos para o regente; `update` apenas de
+  `name`, `voice_part` e `updated_at` via privilégios de coluna; sem `insert`/`delete` direto.
+- `notices`, `tracks`, `scores`, `warmups`, `polls`: leitura por membro, escrita pelo regente.
+- `poll_votes`: voto/atualização apenas do próprio `auth.uid()`; regente pode remover.
+- `messages`: leitura/escrita apenas nas salas permitidas; remoção pelo autor ou regente.
+- `app_secrets`: `revoke all` para `anon`/`authenticated`; somente funções `security definer`.
+- Storage: leitura por membro; faixas/PDF/aquecimento só pelo regente; chat com prefixo do `uid`,
+  `audio/*` e limite de 2 MB.
 
 ## Áudio
 
@@ -62,7 +79,9 @@ acessa todas.
 
 ## Offline e PWA
 
-- Workbox pré-cacheia o shell; o Firestore usa cache persistente com múltiplas abas.
+- Workbox pré-cacheia o shell; o app abre sem rede.
+- Leitura de dados exige rede, exceto o membro em cache no `AuthContext` e faixas já baixadas.
+- Escritas no Supabase não têm fila offline; a interface mostra erro e permite tentar novamente.
 - O download explícito de faixas evita armazenar todo o acervo sem consentimento.
 - Em iOS/Safari, o sistema pode remover caches sob pressão de armazenamento.
 - O app usa `HashRouter` para não depender de fallback de servidor no GitHub Pages.
@@ -78,23 +97,24 @@ acessa todas.
 
 ## Falhas e resiliência
 
-- **Sem rede:** leitura do cache do Firestore e faixas baixadas; escritas ficam em fila.
+- **Sem rede:** shell e faixas baixadas funcionam; dados novos não carregam.
 - **Storage indisponível:** mensagens de texto continuam; áudio falha com aviso.
-- **Function indisponível:** login ainda funciona; onboarding e URLs assinadas podem falhar.
-- **Regra mal configurada:** nega acesso em vez de expor dados, mas pode bloquear o coral.
+- **Edge Function indisponível:** login e dados continuam; exclusão de conta falha com aviso.
+- **Policy mal configurada:** nega acesso em vez de expor dados, mas pode bloquear o coral.
 - **PDF pesado:** abre em modal/aba separada; não é sincronizado com o áudio.
+- **Projeto free pausado:** o app não autentica até o projeto ser reativado no painel.
 
 ## Custos
 
-O consumo cresce com horas de áudio armazenadas, downloads e invocações. Functions e Storage
-exigem Blaze; Firestore tem cota gratuita. Defina orçamento e alertas, e monitore egress de áudio,
-que tende a ser o maior custo em corais grandes.
+O plano free do Supabase cobre o MVP, mas tem cotas de banco, Storage, egress e invocações. O
+consumo cresce com horas de áudio armazenadas e downloads. Monitore o uso de áudio, que tende a ser
+o maior consumidor, e consulte os limites atuais antes de ampliar o coral.
 
 ## Evolução sugerida
 
-1. Testes de regras no Emulator Suite e testes E2E no navegador.
+1. Testes automatizados de RLS/Storage no CI com usuários temporários.
 2. Moderação/limite de mensagens e denúncia de áudio.
 3. Variantes de BPM pré-geradas para qualidade.
 4. Convites individuais com expiração e auditoria de ações do regente.
-5. Exportação LGPD e retenção automatizada com TTL.
+5. Exportação LGPD e rotina agendada de retenção com `pg_cron`.
 6. Empacotamento Tauri opcional, com assinatura de código, se houver requisito de `.exe`.

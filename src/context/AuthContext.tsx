@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -7,21 +7,22 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import type { User } from '@supabase/supabase-js';
 import type { AppUser, Member, Role, VoicePart } from '../types';
 import {
-  auth,
-  callFunction,
-  completeRedirectSignIn,
-  firebaseErrorMessage,
-  isFirebaseConfigured,
-  signInWithGoogle as firebaseGoogleSignIn,
-  signOutFirebase
-} from '../lib/firebase';
+  googleAuthEnabled,
+  isSupabaseConfigured,
+  signInEmail as supabaseSignInEmail,
+  signInGoogle as supabaseSignInGoogle,
+  signOutSupabase,
+  signUpEmail as supabaseSignUpEmail,
+  supabase,
+  supabaseErrorMessage
+} from '../lib/supabase';
 import { ensureLocalSeed, getMember, saveMember } from '../lib/store';
 
 type AuthStatus = 'loading' | 'signedOut' | 'onboarding' | 'ready';
-type AppMode = 'demo' | 'firebase';
+type AppMode = 'demo' | 'supabase';
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -30,7 +31,10 @@ interface AuthContextValue {
   member: Member | null;
   error: string;
   authenticating: boolean;
+  googleEnabled: boolean;
   clearError: () => void;
+  signInEmail: (email: string, password: string) => Promise<void>;
+  signUpEmail: (email: string, password: string, name: string) => Promise<boolean>;
   signInGoogle: () => Promise<void>;
   signInDemo: (role: Role) => void;
   joinChoir: (code: string, voicePart: VoicePart, name: string) => Promise<void>;
@@ -50,22 +54,30 @@ interface DemoSession {
   name?: string;
 }
 
+function displayName(user: User): string {
+  return (
+    String(user.user_metadata?.name || user.user_metadata?.full_name || '').trim() ||
+    user.email?.split('@')[0] ||
+    'Coralista'
+  );
+}
+
 function memberFromUser(user: User): Member {
   return {
-    id: user.uid,
-    name: user.displayName || user.email?.split('@')[0] || 'Coralista',
+    id: user.id,
+    name: displayName(user),
     email: user.email || '',
     role: 'coralista',
     voicePart: 'soprano'
   };
 }
 
-function appUserFromFirebase(user: User): AppUser {
+function appUserFromSupabase(user: User): AppUser {
   return {
-    uid: user.uid,
-    name: user.displayName || user.email?.split('@')[0] || 'Coralista',
+    uid: user.id,
+    name: displayName(user),
     email: user.email || '',
-    photoURL: user.photoURL || undefined
+    photoURL: String(user.user_metadata?.avatar_url || '') || undefined
   };
 }
 
@@ -99,7 +111,7 @@ function readCachedMember(uid: string): Member | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const mode: AppMode = isFirebaseConfigured ? 'firebase' : 'demo';
+  const mode: AppMode = isSupabaseConfigured ? 'supabase' : 'demo';
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AppUser | null>(null);
   const [member, setMember] = useState<Member | null>(null);
@@ -108,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     ensureLocalSeed();
-    if (!isFirebaseConfigured || !auth) {
+    if (!isSupabaseConfigured || !supabase) {
       try {
         const raw = localStorage.getItem(DEMO_SESSION_KEY);
         if (raw) {
@@ -127,65 +139,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const client = supabase;
     let cancelled = false;
-    void completeRedirectSignIn();
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const hydrate = async (supabaseUser: User) => {
+      setUser(appUserFromSupabase(supabaseUser));
+      setStatus('loading');
+      try {
+        try {
+          const { error: syncError } = await client.rpc('sync_regent_role');
+          if (syncError) console.warn('sync_regent_role indisponível.', syncError);
+        } catch (syncError) {
+          console.warn('sync_regent_role indisponível.', syncError);
+        }
+
+        const existing = await getMember(supabaseUser.id);
+        if (cancelled) return;
+        if (existing) {
+          cacheMember(existing);
+          setMember(existing);
+          setStatus('ready');
+        } else {
+          setMember(memberFromUser(supabaseUser));
+          setStatus('onboarding');
+        }
+      } catch (memberError) {
+        if (cancelled) return;
+        const cached = readCachedMember(supabaseUser.id);
+        if (cached && typeof navigator !== 'undefined' && !navigator.onLine) {
+          setMember(cached);
+          setStatus('ready');
+          return;
+        }
+        setError(supabaseErrorMessage(memberError));
+        setMember(memberFromUser(supabaseUser));
+        setStatus('onboarding');
+      }
+    };
+
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if (!firebaseUser) {
+      if (session?.user && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+        void hydrate(session.user);
+        return;
+      }
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
         setUser(null);
         setMember(null);
         setStatus('signedOut');
-        return;
       }
-      setUser(appUserFromFirebase(firebaseUser));
-      setStatus('loading');
-      void (async () => {
-        try {
-          try {
-            await callFunction('syncRegentRole', {});
-          } catch (functionError) {
-            console.warn('syncRegentRole indisponível.', functionError);
-          }
-          const existing = await getMember(firebaseUser.uid);
-          if (cancelled) return;
-          if (existing) {
-            cacheMember(existing);
-            setMember(existing);
-            setStatus('ready');
-          } else {
-            const draft = memberFromUser(firebaseUser);
-            setMember(draft);
-            setStatus('onboarding');
-          }
-        } catch (memberError) {
-          if (cancelled) return;
-          const cached = readCachedMember(firebaseUser.uid);
-          if (cached && typeof navigator !== 'undefined' && !navigator.onLine) {
-            setMember(cached);
-            setStatus('ready');
-            return;
-          }
-          setError(firebaseErrorMessage(memberError));
-          setMember(memberFromUser(firebaseUser));
-          setStatus('onboarding');
-        }
-      })();
     });
 
     return () => {
       cancelled = true;
-      unsubscribe();
+      data.subscription.unsubscribe();
     };
   }, []);
+
+  const signInEmail = useCallback(async (email: string, password: string) => {
+    setError('');
+    setAuthenticating(true);
+    try {
+      await supabaseSignInEmail(email, password);
+    } catch (signInError) {
+      setError(supabaseErrorMessage(signInError));
+    } finally {
+      setAuthenticating(false);
+    }
+  }, []);
+
+  const signUpEmail = useCallback(
+    async (email: string, password: string, name: string): Promise<boolean> => {
+      setError('');
+      setAuthenticating(true);
+      try {
+        const hasSession = await supabaseSignUpEmail(email, password, name);
+        if (!hasSession) {
+          setError('Conta criada. Confirme seu e-mail antes de entrar.');
+        }
+        return hasSession;
+      } catch (signUpError) {
+        setError(supabaseErrorMessage(signUpError));
+        return false;
+      } finally {
+        setAuthenticating(false);
+      }
+    },
+    []
+  );
 
   const signInGoogle = useCallback(async () => {
     setError('');
     setAuthenticating(true);
     try {
-      await firebaseGoogleSignIn();
+      await supabaseSignInGoogle();
     } catch (signInError) {
-      setError(firebaseErrorMessage(signInError));
+      setError(supabaseErrorMessage(signInError));
     } finally {
       setAuthenticating(false);
     }
@@ -228,11 +277,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('ready');
         return;
       }
-      const response = await callFunction<Member, { code: string; voicePart: VoicePart; name: string }>(
-        'joinChoir',
-        { code: code.trim(), voicePart, name: cleanName }
-      );
-      const existing = response?.id ? response : await getMember(user.uid);
+      if (!supabase) throw new Error('Supabase não está configurado.');
+      const { error: joinError } = await supabase.rpc('join_choir', {
+        p_code: code.trim(),
+        p_voice_part: voicePart,
+        p_name: cleanName
+      });
+      if (joinError) throw new Error(supabaseErrorMessage(joinError));
+
+      const existing = await getMember(user.uid);
       if (!existing) throw new Error('Não foi possível concluir a entrada no coral.');
       cacheMember(existing);
       setMember(existing);
@@ -243,8 +296,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     localStorage.removeItem(MEMBER_CACHE_KEY);
-    if (mode === 'firebase') {
-      await signOutFirebase();
+    if (mode === 'supabase') {
+      await signOutSupabase();
       return;
     }
     localStorage.removeItem(DEMO_SESSION_KEY);
@@ -295,7 +348,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       member,
       error,
       authenticating,
+      googleEnabled: googleAuthEnabled,
       clearError: () => setError(''),
+      signInEmail,
+      signUpEmail,
       signInGoogle,
       signInDemo,
       joinChoir,
@@ -310,6 +366,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       member,
       error,
       authenticating,
+      signInEmail,
+      signUpEmail,
       signInGoogle,
       signInDemo,
       joinChoir,

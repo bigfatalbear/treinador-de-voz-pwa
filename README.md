@@ -1,18 +1,17 @@
 # TREINADOR DE VOZ
 
-PWA de treino de coral publicada no GitHub Pages, com dados e mídia no Firebase/Google Cloud.
-O site é 100% estático; autenticação, banco, arquivos e operações confiáveis rodam fora do
-GitHub Pages.
+PWA de treino de coral publicada no GitHub Pages, com autenticação, banco, arquivos e operações
+confiáveis no **Supabase free**. O site é 100% estático; nenhum segredo fica no bundle.
 
-- **UUID de marca:** `2dfce9de-de4b-57ae-a291-a170c20195cd`
+- **UUID de marca:** `2dfce9de-de-4b-57ae-a291-a170c20195cd`
 - **Repositório:** https://github.com/bigfatalbear/treinador-de-voz-pwa
-- **URL pública (GitHub Pages ativa):** https://bigfatalbear.github.io/treinador-de-voz-pwa/
-- **Projeto Google Cloud/Firebase:** `treinador-de-voz-ccb070` (confirmado pelo responsável; provisionamento pendente)
-- **Região:** `southamerica-east1` (São Paulo)
+- **URL pública:** https://bigfatalbear.github.io/treinador-de-voz-pwa/
+- **Projeto Supabase:** `qlzmvtbhphybyklsttzq` (São Paulo, `sa-east-1`)
+- **URL da API:** https://qlzmvtbhphybyklsttzq.supabase.co
 
-## O que já funciona sem Firebase
+## Modo demonstração
 
-Sem as variáveis `VITE_FIREBASE_*`, o app inicia em **modo demonstração**:
+Sem `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`, o app inicia em **modo demonstração**:
 
 - login local como regente ou coralista;
 - mixer com quatro naipes gerados no dispositivo + playback;
@@ -20,8 +19,7 @@ Sem as variáveis `VITE_FIREBASE_*`, o app inicia em **modo demonstração**:
 - faixas demo, mural, chat por naipe, enquetes de presença e área do regente;
 - dados em `localStorage` e áudios em IndexedDB, somente neste navegador.
 
-O modo demo não simula as Security Rules. A autorização real só é aplicada com o Firebase
-provisionado.
+O modo demo não simula RLS. A autorização real só é aplicada com o Supabase configurado.
 
 ## Funcionalidades
 
@@ -41,8 +39,8 @@ provisionado.
 ## Stack
 
 React 18, TypeScript, Tailwind CSS, Vite, `vite-plugin-pwa`, Tone.js, Web Audio API,
-`idb-keyval`, Firebase Auth/Firestore/Storage/Functions, Cloud Functions 2ª geração.
-O frontend é publicado no GitHub Pages; o Firebase Hosting não é usado em produção.
+`idb-keyval`, `@supabase/supabase-js` e Supabase (Auth, Postgres/RLS, Storage, Realtime e Edge
+Functions). O frontend é publicado no GitHub Pages; não há servidor próprio.
 
 ## Desenvolvimento
 
@@ -60,31 +58,32 @@ npm run build
 npm run preview
 ```
 
-## Configuração do Firebase
+## Configuração do Supabase
 
-1. Provisione o projeto e os serviços seguindo [docs/SETUP.md](docs/SETUP.md).
-2. Copie `.env.example` para `.env.local` e preencha os valores públicos do app Web.
-3. Rode as regras e as Functions:
+1. Copie `.env.example` para `.env.local` e preencha a URL e a chave publicável do projeto.
+2. Aplique a migration e publique a função de exclusão:
 
 ```bash
-npm --prefix functions install
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+supabase link --project-ref qlzmvtbhphybyklsttzq
+supabase db push
+supabase functions deploy delete-account --no-verify-jwt
 ```
 
-4. Cadastre os mesmos valores como secrets do GitHub Actions para o build de produção.
-5. Autorize o domínio `bigfatalbear.github.io` no Firebase Authentication.
+3. Configure `site_url` e `uri_allow_list` do Auth para o Pages e para o desenvolvimento local.
+4. Cadastre `regent_emails` e `invite_code` em `public.app_secrets`. Não versione esses valores.
+5. Cadastre `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_BUCKET`,
+   `VITE_SUPABASE_GOOGLE_ENABLED` e `VITE_CHOIR_ID` como secrets do GitHub Actions.
 
-Sem esses passos, o site publicado continua em modo demonstração. Nenhum segredo deve ir para
-`.env.local` versionado, para o repositório ou para o bundle.
+Detalhes em [docs/SETUP.md](docs/SETUP.md). Sem esses passos, o site publicado continua em modo
+demonstração.
 
 ## Deploy
 
 O workflow `.github/workflows/deploy.yml` roda typecheck, testes e build; publica `dist` no
 GitHub Pages. Em **Settings → Pages**, selecione **GitHub Actions** como fonte.
 
-A URL só existe depois do primeiro deploy bem-sucedido. O caminho base do Vite é
-`/treinador-de-voz-pwa/`; renomear o repositório exige atualizar `base`, o `start_url`/`scope`
-do manifest, o workflow e os domínios autorizados.
+O caminho base do Vite é `/treinador-de-voz-pwa/`; renomear o repositório exige atualizar `base`,
+o `start_url`/`scope` do manifest, o workflow e as URLs autorizadas no Supabase Auth.
 
 ## Estrutura
 
@@ -92,23 +91,22 @@ do manifest, o workflow e os domínios autorizados.
 src/
   components/     UI, layout, afinador, letra, gravador, PIX
   context/        autenticação e toasts
-  lib/            Firebase, dados, áudio, mídia, cache, PIX, LRC, pitch
+  lib/            Supabase, dados, áudio, mídia, cache, PIX, LRC, pitch
   pages/          Treino, Chat, Mural, Regente, Perfil, Login, Onboarding
-functions/        Cloud Functions (claims, convite, URL assinada, exclusão)
-firestore.rules   autorização por membro/papel/sala
-storage.rules     leitura privada, escrita do regente, chat limitado
+supabase/
+  migrations/     schema, RLS, RPCs, bucket e policies
+  functions/      Edge Function de exclusão de conta
 docs/             setup, arquitetura, segurança e aceite
 ```
 
 ## Segurança e privacidade
 
-- Login Google com escopos básicos (`openid`, `email`, `profile`); sem Drive.
-- Papel de regente concedido apenas no servidor por lista de e-mails (`REGENT_EMAILS`).
-- Entrada no coral por código de convite validado em Cloud Function.
-- Firestore/Storage: leitura só para membros; escrita de conteúdo só para regente.
-- URLs de mídia assinadas por 15 minutos; sem tokens de service account no frontend.
-- App Check opcional com reCAPTCHA Enterprise (`VITE_RECAPTCHA_SITE_KEY`).
-- Chat com retenção de 90 dias; presença por 12 meses; somente maiores de 18 anos no MVP.
+- Login por e-mail/senha; Google é opcional e depende de OAuth configurado.
+- Papel de regente concedido no servidor por lista de e-mails (`app_secrets.regent_emails`).
+- Entrada no coral por código de convite validado pela RPC `join_choir`.
+- RLS: leitura só para membros; escrita de conteúdo só para regente; voto só no próprio membro.
+- Bucket privado; URLs assinadas por 15 minutos e sem service role no frontend.
+- Chat com retenção documentada de 90 dias; presença por 12 meses; somente maiores de 18 anos.
 - Overdub e afinador não saem do dispositivo.
 - PIX é doação voluntária, sem verificação automática de pagamento.
 
@@ -116,12 +114,15 @@ Leia [docs/SECURITY.md](docs/SECURITY.md) para limites e riscos residuais.
 
 ## Limitações conhecidas
 
-- Firebase/GCP **não provisionados** neste repositório.
+- O plano free do Supabase pode pausar projetos sem atividade; reative no painel.
+- A limpeza automática de mensagens com mais de 90 dias ainda não está agendada (`expires_at` já
+  existe e é filtrado na leitura).
+- Google OAuth não está configurado por padrão; use `VITE_SUPABASE_GOOGLE_ENABLED=false`.
 - O GitHub Pages não permite cabeçalhos HTTP personalizados; CSP é limitada.
 - A qualidade do time-stretch no cliente varia por dispositivo e por tamanho da mudança de BPM.
 - O atalho Windows é o da PWA; não há `.exe`, assinatura de código ou auto-update próprio.
-- Testes de regras com Emulator Suite, Lighthouse/axe e testes em dispositivos reais ainda
-  precisam ser executados no ambiente provisionado.
+- Testes de RLS/Storage são automatizados por script manual; Lighthouse/axe e dispositivos reais
+  ainda precisam ser executados.
 
 ## Licença e conteúdo
 

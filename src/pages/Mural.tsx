@@ -152,7 +152,7 @@ export function Mural() {
           </div>
         )}
         <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-          A presença é registrada por membro. Em modo offline, o voto fica na fila do Firestore e é
+          A presença é registrada por membro. Em modo offline, o voto fica na fila do Supabase e é
           sincronizado quando a conexão volta.
         </p>
       </Card>

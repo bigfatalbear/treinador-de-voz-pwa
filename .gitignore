@@ -8,11 +8,8 @@ coverage/
 !.env.example
 .DS_Store
 Thumbs.db
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-functions/lib/
-functions/node_modules/
+.supabase/
+supabase/.temp/
 .vscode/*
 !.vscode/extensions.json
 .idea/

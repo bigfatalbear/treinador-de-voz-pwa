@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { callFunction, firebaseErrorMessage } from '../lib/firebase';
+import { deleteAccount as deleteSupabaseAccount, supabaseErrorMessage } from '../lib/supabase';
 import { APP_NAME, APP_UUID, APP_VERSION, GITHUB_REPO, RETENTION_DAYS } from '../lib/branding';
 import { clearOfflineCache, offlineCacheSize } from '../lib/cache';
 import { VOICE_PART_LABEL, VOICE_PARTS, type VoicePart } from '../types';
@@ -50,7 +50,7 @@ export function Profile() {
       await updateMember({ name: cleanName, voicePart });
       notify('Perfil atualizado.', 'success');
     } catch (error) {
-      notify(firebaseErrorMessage(error), 'error');
+      notify(supabaseErrorMessage(error), 'error');
     } finally {
       setSaving(false);
     }
@@ -73,11 +73,11 @@ export function Profile() {
     }
     setDeleting(true);
     try {
-      await callFunction('deleteMyData', {});
+      await deleteSupabaseAccount();
       notify('Conta e dados apagados.', 'success');
       await signOut();
     } catch (error) {
-      notify(firebaseErrorMessage(error), 'error');
+      notify(supabaseErrorMessage(error), 'error');
     } finally {
       setDeleting(false);
     }
@@ -91,7 +91,7 @@ export function Profile() {
         <p className="mt-1 text-xs text-slate-500">
           {mode === 'demo'
             ? 'Modo demonstração: os dados ficam apenas neste navegador.'
-            : 'Conta Google vinculada ao coral.'}
+            : 'Conta Supabase vinculada ao coral.'}
         </p>
       </div>
 
@@ -161,9 +161,9 @@ export function Profile() {
           <p className="flex items-start gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-400" aria-hidden />
             <span>
-              Login apenas com Google, escopos básicos de perfil e e-mail. Nenhum token de serviço
-              ou segredo é embutido no aplicativo. O Firebase Web usa identificadores públicos
-              restritos por domínio.
+              Login com e-mail e senha; Google é opcional quando configurado. Nenhum token de
+              serviço ou segredo é embutido no aplicativo. A chave pública do Supabase é protegida
+              por RLS e pelas políticas de Storage.
             </span>
           </p>
           <p className="flex items-start gap-2">
@@ -183,7 +183,7 @@ export function Profile() {
           </p>
         </div>
 
-        {mode === 'firebase' ? (
+        {mode === 'supabase' ? (
           <Button
             variant="danger"
             className="mt-4 w-full"
@@ -214,8 +214,8 @@ export function Profile() {
             </Button>
           </div>
           <p className={cn('mt-2 text-[11px] leading-relaxed text-slate-500')}>
-            No modo demo não há Firebase: os dados são compartilhados apenas neste navegador e as
-            permissões são simuladas na interface. As regras reais só valem com o Firebase
+            No modo demo não há Supabase: os dados são compartilhados apenas neste navegador e as
+            permissões são simuladas na interface. As regras reais só valem com o Supabase
             configurado.
           </p>
         </Card>

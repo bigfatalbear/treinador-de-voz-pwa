@@ -1,33 +1,36 @@
 # Critérios de aceite
 
-Status após a implementação local. “Pendente” depende de provisionamento Google ou de teste em
-ambiente real; não deve ser lido como concluído.
+Status após a migração para Supabase. “Pendente” depende de teste em ambiente real ou de uma
+decisão futura; não deve ser lido como concluído.
 
 | Área | Critério | Status |
 |---|---|---|
 | Build | `npm run typecheck`, `npm test` e `npm run build` passam | Verificado localmente |
-| PWA | Manifest, service worker e instalação no Edge/Chrome | Implementado; teste de instalação pendente |
+| Backend | Migration, bucket, policies e Edge Function aplicados | Verificado no projeto Supabase |
+| Auth | Cadastro e login por e-mail/senha; Google opcional | E-mail/senha verificado; Google não configurado |
+| Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test |
+| Papéis | Regente por lista de e-mails; cliente não se promove | Verificado por smoke test |
+| RLS | Coralista lê conteúdo, não cria aviso e não altera `role` | Verificado por smoke test |
+| Chat | Salas geral + 4 naipes; coralista restrito ao próprio naipe | Verificado por smoke test |
+| Presença | Voto único por membro, alterável | RLS verificada; fluxo de UI a validar |
+| Storage | Regente envia faixa; coralista não envia faixa; chat do próprio naipe | Verificado por smoke test |
+| Mídia | URL assinada para membro e expiração curta | Verificado por smoke test |
+| Exclusão | Edge Function remove conta, membro e áudios | Verificado por smoke test |
+| PWA | Manifest, service worker e instalação no Edge/Chrome | Implementado; instalação a validar |
 | Offline | Shell abre sem rede e faixas baixadas tocam | Implementado; teste em dispositivo pendente |
 | Mixer | Volume independente de 4 naipes + playback | Implementado no modo demo |
 | BPM | Slider 50–150 sem mudança de tom | Implementado com Tone.js; qualidade a validar |
 | Loop A-B | Marcar A/B, ativar e repetir | Implementado |
 | Letra | LRC sincronizado, clique para buscar | Implementado e testado unitariamente |
-| Partitura | PDF privado para consulta | Implementado; CORS/Storage pendentes |
+| Partitura | PDF privado para consulta | Implementado; fluxo de upload a validar |
 | Afinador | Microfone, nota e cents em tempo real | Implementado; requer HTTPS e permissão |
 | Overdub | Gravar junto, ouvir e baixar | Implementado; latência a validar |
-| Auth | Google + onboarding por convite | Implementado; Firebase pendente |
-| Papéis | Regente por lista de e-mails; cliente não se promove | Implementado nas Functions/regras; testar no emulador |
-| Chat | Salas geral + 4 naipes, texto e áudio ≤60 s | Implementado; regras a testar |
-| Mural | Avisos fixos, criação/exclusão pelo regente | Implementado |
-| Presença | Voto único por membro, alterável | Implementado; regras a testar |
-| Regente | Upload de stems, PDF, aquecimento, avisos e enquetes | Implementado |
-| Offline cache | Download explícito e limpeza | Implementado |
-| Privacidade | Sem Analytics; retenção documentada; exclusão de conta | Implementado; TTL/rotina pendente |
+| Mural | Avisos fixos, criação/exclusão pelo regente | RLS verificada; UI a validar |
+| Regente | Upload de stems, PDF, aquecimento, avisos e enquetes | Fluxo implementado; teste completo pendente |
+| Privacidade | Sem Analytics; retenção documentada; exclusão de conta | Implementado; limpeza automática pendente |
 | PIX | Botão visível, QR, copia-e-cola e CRC16 | Implementado; teste no app do banco pendente |
-| Segurança | Sem segredos no bundle/repo; URLs assinadas; App Check opcional | Implementado; App Check pendente |
 | Acessibilidade | Teclado, rótulos, contraste, alvos de toque | Revisão manual; axe/Lighthouse pendentes |
-| Windows | Atalho instalado da PWA | Depende do navegador do usuário |
-| GitHub Pages | Deploy por Actions e URL pública | Publicado e verificado em modo demonstração |
+| GitHub Pages | Deploy por Actions com backend Supabase | Secrets configurados; deploy final a confirmar |
 
 ## Critérios que exigem decisão futura
 
@@ -35,4 +38,6 @@ ambiente real; não deve ser lido como concluído.
 - Variantes de BPM pré-geradas no servidor: não fazem parte deste MVP.
 - Moderação automática de chat: não implementada.
 - Exportação LGPD: manual.
-- Múltiplos corais: modelo preparado por `choirId`, interface de um coral.
+- Múltiplos corais: modelo preparado por `choir_id`, interface de um coral.
+- Google OAuth: opcional; requer client OAuth e ativação do provedor.
+- Limpeza automática de mensagens após 90 dias: `expires_at` existe, job não agendado.
