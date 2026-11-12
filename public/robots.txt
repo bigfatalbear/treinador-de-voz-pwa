@@ -1,0 +1,4 @@
+# TREINADOR DE VOZ
+# Branding UUID: 2dfce9de-de4b-57ae-a291-a170c20195cd
+User-agent: *
+Allow: /

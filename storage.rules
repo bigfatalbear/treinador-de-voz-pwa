@@ -1,0 +1,69 @@
+rules_version = '2';
+
+// TREINADOR DE VOZ
+// Branding UUID: 2dfce9de-de4b-57ae-a291-a170c20195cd
+// Regras de Storage: leitura exige vínculo com o coral; escrita de conteúdo do regente
+// é restrita ao papel de regente. Áudios de chat têm limite de 2 MB e 60 segundos no cliente.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function memberPath(choirId) {
+      return /databases/(default)/documents/choirs/$(choirId)/members/$(request.auth.uid);
+    }
+
+    function isMember(choirId) {
+      return request.auth != null && firestore.exists(memberPath(choirId));
+    }
+
+    function isRegent(choirId) {
+      return isMember(choirId) && firestore.get(memberPath(choirId)).data.role == 'regente';
+    }
+
+    function canUseRoom(choirId, room) {
+      return isMember(choirId) && (
+        room == 'geral' ||
+        firestore.get(memberPath(choirId)).data.role == 'regente' ||
+        firestore.get(memberPath(choirId)).data.voicePart == room
+      );
+    }
+
+    function validAudio() {
+      return request.resource.size <= 25 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*');
+    }
+
+    match /choirs/{choirId}/tracks/{allPaths=**} {
+      allow read: if isMember(choirId);
+      allow create, update: if isRegent(choirId) && validAudio();
+      allow delete: if isRegent(choirId);
+    }
+
+    match /choirs/{choirId}/scores/{allPaths=**} {
+      allow read: if isMember(choirId);
+      allow create, update: if isRegent(choirId) &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType == 'application/pdf';
+      allow delete: if isRegent(choirId);
+    }
+
+    match /choirs/{choirId}/warmups/{allPaths=**} {
+      allow read: if isMember(choirId);
+      allow create, update: if isRegent(choirId) && validAudio();
+      allow delete: if isRegent(choirId);
+    }
+
+    match /choirs/{choirId}/chat/{room}/{fileName} {
+      allow read: if isMember(choirId) && canUseRoom(choirId, room);
+      allow create: if isMember(choirId) &&
+        canUseRoom(choirId, room) &&
+        fileName.matches(request.auth.uid + '-.*') &&
+        request.resource.size <= 2 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*');
+      allow update: if false;
+      allow delete: if isRegent(choirId) || fileName.matches(request.auth.uid + '-.*');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

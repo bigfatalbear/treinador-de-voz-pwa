@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply min-h-dvh bg-ink-950 font-sans text-slate-100 antialiased;
+    background-image:
+      radial-gradient(circle at 12% -10%, rgba(99, 102, 241, 0.14), transparent 38%),
+      radial-gradient(circle at 92% 108%, rgba(16, 185, 129, 0.1), transparent 42%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-brand-500/40 text-white;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 999px;
+  }
+
+  input[type='range'] {
+    @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    @apply h-5 w-5 appearance-none rounded-full border-2 border-ink-950 bg-gradient-to-br from-brand-300 to-accent-300 shadow-lg;
+  }
+
+  input[type='range']::-moz-range-thumb {
+    @apply h-4 w-4 rounded-full border-2 border-ink-950 bg-brand-300;
+  }
+
+  input[type='range']:focus-visible {
+    @apply outline outline-2 outline-offset-4 outline-brand-300/70;
+  }
+
+  input[type='range']:disabled {
+    @apply cursor-not-allowed opacity-30;
+  }
+
+  audio {
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

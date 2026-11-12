@@ -1,0 +1,160 @@
+rules_version = '2';
+
+// TREINADOR DE VOZ
+// Branding UUID: 2dfce9de-de4b-57ae-a291-a170c20195cd
+// A autorização usa o documento de membro do coral. O cliente nunca escreve o próprio papel.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(choirId) {
+      return /databases/$(database)/documents/choirs/$(choirId)/members/$(request.auth.uid);
+    }
+
+    function isMember(choirId) {
+      return signedIn() && exists(memberPath(choirId));
+    }
+
+    function memberData(choirId) {
+      return get(memberPath(choirId)).data;
+    }
+
+    function isRegent(choirId) {
+      return isMember(choirId) && memberData(choirId).role == 'regente';
+    }
+
+    function canUseRoom(choirId, room) {
+      return isMember(choirId) && (
+        room == 'geral' ||
+        memberData(choirId).role == 'regente' ||
+        memberData(choirId).voicePart == room
+      );
+    }
+
+    function hasOnlyKeys(data, keys) {
+      return data.keys().hasOnly(keys);
+    }
+
+    function validNotice(data) {
+      return hasOnlyKeys(data, ['title', 'body', 'authorName', 'pinned', 'createdAt']) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.body is string && data.body.size() >= 2 && data.body.size() <= 5000 &&
+        data.authorName is string && data.authorName.size() <= 80 &&
+        data.pinned is bool;
+    }
+
+    function validTrack(data) {
+      return hasOnlyKeys(data, ['title', 'composer', 'bpm', 'lyrics', 'demo', 'parts', 'createdAt']) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.bpm is number && data.bpm >= 50 && data.bpm <= 150 &&
+        data.parts is map &&
+        data.parts.keys().hasOnly(['soprano', 'contralto', 'tenor', 'baixo']) &&
+        (!('lyrics' in data) || (data.lyrics is string && data.lyrics.size() <= 20000)) &&
+        (!('composer' in data) || (data.composer is string && data.composer.size() <= 140));
+    }
+
+    function validScore(data) {
+      return hasOnlyKeys(data, ['title', 'pdfPath', 'createdAt']) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.pdfPath is string && data.pdfPath.size() <= 500;
+    }
+
+    function validWarmup(data) {
+      return hasOnlyKeys(data, ['title', 'description', 'audioPath', 'category', 'createdAt']) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.audioPath is string && data.audioPath.size() <= 500;
+    }
+
+    function validPoll(data) {
+      return hasOnlyKeys(data, ['title', 'eventDate', 'authorName', 'createdAt']) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 140 &&
+        data.eventDate is string && data.eventDate.size() == 10 &&
+        data.authorName is string && data.authorName.size() <= 80;
+    }
+
+    function validMessage(data, room) {
+      return hasOnlyKeys(data, ['room', 'text', 'audioPath', 'audioDuration', 'authorId', 'authorName', 'createdAt']) &&
+        data.room == room &&
+        data.room in ['geral', 'soprano', 'contralto', 'tenor', 'baixo'] &&
+        data.authorId == request.auth.uid &&
+        data.authorName is string && data.authorName.size() <= 80 &&
+        (!('text' in data) || (data.text is string && data.text.size() >= 1 && data.text.size() <= 2000)) &&
+        (!('audioPath' in data) || (data.audioPath is string && data.audioPath.size() <= 500)) &&
+        (!('audioDuration' in data) || (data.audioDuration is number && data.audioDuration > 0 && data.audioDuration <= 60)) &&
+        data.keys().hasAny(['text', 'audioPath']);
+    }
+
+    match /choirs/{choirId} {
+      allow read: if isMember(choirId);
+      allow write: if false;
+
+      match /members/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || isRegent(choirId));
+        allow create, delete: if false;
+        allow update: if request.auth.uid == uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'voicePart', 'updatedAt']) &&
+          request.resource.data.role == resource.data.role;
+      }
+
+      match /notices/{noticeId} {
+        allow read: if isMember(choirId);
+        allow create: if isRegent(choirId) && validNotice(request.resource.data);
+        allow update: if isRegent(choirId) && validNotice(request.resource.data);
+        allow delete: if isRegent(choirId);
+      }
+
+      match /tracks/{trackId} {
+        allow read: if isMember(choirId);
+        allow create: if isRegent(choirId) && validTrack(request.resource.data);
+        allow update: if isRegent(choirId) && validTrack(request.resource.data);
+        allow delete: if isRegent(choirId);
+      }
+
+      match /scores/{scoreId} {
+        allow read: if isMember(choirId);
+        allow create: if isRegent(choirId) && validScore(request.resource.data);
+        allow update: if isRegent(choirId) && validScore(request.resource.data);
+        allow delete: if isRegent(choirId);
+      }
+
+      match /warmups/{warmupId} {
+        allow read: if isMember(choirId);
+        allow create: if isRegent(choirId) && validWarmup(request.resource.data);
+        allow update: if isRegent(choirId) && validWarmup(request.resource.data);
+        allow delete: if isRegent(choirId);
+      }
+
+      match /polls/{pollId} {
+        allow read: if isMember(choirId);
+        allow create: if isRegent(choirId) && validPoll(request.resource.data);
+        allow update: if isRegent(choirId) && validPoll(request.resource.data);
+        allow delete: if isRegent(choirId);
+
+        match /votes/{uid} {
+          allow read: if isMember(choirId);
+          allow create, update: if isMember(choirId) &&
+            request.auth.uid == uid &&
+            request.resource.data.keys().hasOnly(['value', 'name', 'updatedAt']) &&
+            request.resource.data.value in ['sim', 'nao', 'talvez'] &&
+            request.resource.data.name is string &&
+            request.resource.data.name.size() <= 80;
+          allow delete: if isRegent(choirId) || (isMember(choirId) && request.auth.uid == uid);
+        }
+      }
+
+      match /rooms/{room}/messages/{messageId} {
+        allow read: if canUseRoom(choirId, room);
+        allow create: if canUseRoom(choirId, room) && validMessage(request.resource.data, room);
+        allow update: if isRegent(choirId);
+        allow delete: if isRegent(choirId) ||
+          (isMember(choirId) && resource.data.authorId == request.auth.uid);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
