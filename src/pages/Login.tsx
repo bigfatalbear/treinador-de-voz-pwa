@@ -26,16 +26,21 @@ export function Login() {
   const {
     mode,
     error,
+    notice,
     authenticating,
     googleEnabled,
     signInEmail,
     signUpEmail,
     signInGoogle,
+    requestPasswordReset,
     signInDemo,
-    clearError
+    clearError,
+    clearNotice
   } = useAuth();
   const [showDetails, setShowDetails] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,12 +48,17 @@ export function Login() {
 
   const submit = async () => {
     setLocalError('');
-    if (creating && name.trim().length < 2) {
-      setLocalError('Informe seu nome.');
-      return;
-    }
     if (!email.includes('@')) {
       setLocalError('Informe um e-mail válido.');
+      return;
+    }
+    if (recovering) {
+      const sent = await requestPasswordReset(email);
+      if (sent) setResetSent(true);
+      return;
+    }
+    if (creating && name.trim().length < 2) {
+      setLocalError('Informe seu nome.');
       return;
     }
     if (password.length < 6) {
@@ -60,6 +70,14 @@ export function Login() {
     } else {
       await signInEmail(email, password);
     }
+  };
+
+  const leaveRecovery = () => {
+    setRecovering(false);
+    setResetSent(false);
+    setLocalError('');
+    clearError();
+    clearNotice();
   };
 
   return (
@@ -111,12 +129,25 @@ export function Login() {
           </section>
 
           <Card className="bg-ink-850/90">
-            <h2 className="text-lg font-semibold text-white">{creating ? 'Criar conta' : 'Entrar'}</h2>
+            <h2 className="text-lg font-semibold text-white">
+              {recovering ? 'Recuperar senha' : creating ? 'Criar conta' : 'Entrar'}
+            </h2>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               {mode === 'supabase'
-                ? 'Use e-mail e senha. O acesso ao coral é liberado pelo código de convite do regente.'
+                ? recovering
+                  ? 'Informe o e-mail da conta. Enviaremos um link para você criar uma nova senha.'
+                  : 'Use e-mail e senha. O acesso ao coral é liberado pelo código de convite do regente.'
                 : 'O Supabase ainda não está configurado. Use o modo demonstração para conhecer o app; os dados ficam apenas neste navegador.'}
             </p>
+
+            {notice ? (
+              <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+                <p>{notice}</p>
+                <button type="button" onClick={clearNotice} className="mt-2 underline">
+                  Fechar
+                </button>
+              </div>
+            ) : null}
 
             {error || localError ? (
               <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-200">
@@ -142,75 +173,122 @@ export function Login() {
                   void submit();
                 }}
               >
-                {creating ? (
-                  <Field label="Nome">
-                    <Input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Seu nome"
-                      autoComplete="name"
-                      maxLength={80}
-                    />
-                  </Field>
-                ) : null}
-                <Field label="E-mail">
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="voce@exemplo.com"
-                    autoComplete="email"
-                    inputMode="email"
-                    required
-                  />
-                </Field>
-                <Field label="Senha" hint="Mínimo de 6 caracteres.">
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Sua senha"
-                    autoComplete={creating ? 'new-password' : 'current-password'}
-                    minLength={6}
-                    required
-                  />
-                </Field>
-                <Button type="submit" loading={authenticating} className="w-full" size="lg">
-                  {creating ? 'Criar conta' : 'Entrar'}
-                </Button>
-
-                {googleEnabled ? (
-                  <>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-600">
-                      <span className="h-px flex-1 bg-white/10" />
-                      ou
-                      <span className="h-px flex-1 bg-white/10" />
-                    </div>
+                {recovering && resetSent ? (
+                  <div className="space-y-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.07] p-3 text-xs leading-relaxed text-emerald-100">
+                    <p className="font-semibold">Verifique seu e-mail.</p>
+                    <p>
+                      Se este e-mail estiver cadastrado, enviamos um link para criar uma nova senha.
+                      Abra o link no mesmo navegador em que fez a solicitação. Verifique também a
+                      pasta de spam.
+                    </p>
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => void signInGoogle()}
-                      loading={authenticating}
+                      onClick={leaveRecovery}
                       className="w-full"
-                      size="lg"
                     >
-                      <GoogleMark />
-                      Entrar com Google
+                      Voltar para entrar
                     </Button>
-                  </>
-                ) : null}
+                  </div>
+                ) : (
+                  <>
+                    {creating ? (
+                      <Field label="Nome">
+                        <Input
+                          value={name}
+                          onChange={(event) => setName(event.target.value)}
+                          placeholder="Seu nome"
+                          autoComplete="name"
+                          maxLength={80}
+                        />
+                      </Field>
+                    ) : null}
+                    <Field label="E-mail">
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="voce@exemplo.com"
+                        autoComplete="email"
+                        inputMode="email"
+                        required
+                      />
+                    </Field>
+                    {!recovering ? (
+                      <Field label="Senha" hint="Mínimo de 6 caracteres.">
+                        <Input
+                          type="password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          placeholder="Sua senha"
+                          autoComplete={creating ? 'new-password' : 'current-password'}
+                          minLength={6}
+                          required
+                        />
+                      </Field>
+                    ) : null}
+                    <Button type="submit" loading={authenticating} className="w-full" size="lg">
+                      {recovering ? 'Enviar link de recuperação' : creating ? 'Criar conta' : 'Entrar'}
+                    </Button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreating((current) => !current);
-                    setLocalError('');
-                    clearError();
-                  }}
-                  className="w-full text-center text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
-                >
-                  {creating ? 'Já tenho conta. Entrar' : 'Ainda não tenho conta. Criar conta'}
-                </button>
+                    {!recovering && googleEnabled ? (
+                      <>
+                        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-600">
+                          <span className="h-px flex-1 bg-white/10" />
+                          ou
+                          <span className="h-px flex-1 bg-white/10" />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => void signInGoogle()}
+                          loading={authenticating}
+                          className="w-full"
+                          size="lg"
+                        >
+                          <GoogleMark />
+                          Entrar com Google
+                        </Button>
+                      </>
+                    ) : null}
+
+                    {!creating && !recovering ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecovering(true);
+                          setResetSent(false);
+                          setLocalError('');
+                          clearError();
+                          clearNotice();
+                        }}
+                        className="w-full text-center text-xs text-brand-300 underline-offset-2 hover:text-brand-200 hover:underline"
+                      >
+                        Esqueci minha senha
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (recovering) {
+                          leaveRecovery();
+                          return;
+                        }
+                        setCreating((current) => !current);
+                        setLocalError('');
+                        clearError();
+                      }}
+                      className="w-full text-center text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                    >
+                      {recovering
+                        ? 'Voltar para entrar'
+                        : creating
+                          ? 'Já tenho conta. Entrar'
+                          : 'Ainda não tenho conta. Criar conta'}
+                    </button>
+                  </>
+                )}
               </form>
             ) : (
               <div className="mt-5 space-y-3">

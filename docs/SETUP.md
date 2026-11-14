@@ -88,6 +88,10 @@ No painel **Authentication → URL Configuration**:
 O MVP usa `mailer_autoconfirm=true` para evitar dependência de e-mail no onboarding por convite.
 Se a confirmação por e-mail for reativada, ajuste o template e teste o fluxo.
 
+O link **Esqueci minha senha** usa `resetPasswordForEmail` e retorna para a URL base do Pages.
+Mantenha o Site URL e as Redirect URLs acima; o link precisa ser aberto no mesmo navegador em que
+foi solicitado. Para produção com mais volume, configure um SMTP próprio no Supabase.
+
 ### Google opcional
 
 1. Crie um OAuth Client Web no Google Cloud.

@@ -44,13 +44,30 @@ export async function signUpEmail(
   return Boolean(data.session);
 }
 
+function appRedirectUrl(): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}`;
+}
+
 export async function signInGoogle(): Promise<void> {
   const client = requireClient();
-  const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
   const { error } = await client.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo }
+    options: { redirectTo: appRedirectUrl() }
   });
+  if (error) throw error;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: appRedirectUrl()
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const client = requireClient();
+  const { error } = await client.auth.updateUser({ password });
   if (error) throw error;
 }
 
@@ -83,6 +100,12 @@ export function supabaseErrorMessage(error: unknown): string {
   }
   if (normalized.includes('password should be at least')) {
     return 'A senha deve ter pelo menos 6 caracteres.';
+  }
+  if (normalized.includes('should be different from the old password')) {
+    return 'A nova senha precisa ser diferente da senha atual.';
+  }
+  if (normalized.includes('link is invalid') || normalized.includes('link has expired')) {
+    return 'Este link de recuperação expirou. Solicite outro na tela de login.';
   }
   if (normalized.includes('email rate limit') || normalized.includes('rate limit')) {
     return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';

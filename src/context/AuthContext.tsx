@@ -12,16 +12,18 @@ import type { AppUser, Member, Role, VoicePart } from '../types';
 import {
   googleAuthEnabled,
   isSupabaseConfigured,
+  requestPasswordReset as supabaseRequestPasswordReset,
   signInEmail as supabaseSignInEmail,
   signInGoogle as supabaseSignInGoogle,
   signOutSupabase,
   signUpEmail as supabaseSignUpEmail,
   supabase,
-  supabaseErrorMessage
+  supabaseErrorMessage,
+  updatePassword as supabaseUpdatePassword
 } from '../lib/supabase';
 import { ensureLocalSeed, getMember, paths, saveMember, updateDocument } from '../lib/store';
 
-type AuthStatus = 'loading' | 'signedOut' | 'onboarding' | 'ready';
+type AuthStatus = 'loading' | 'signedOut' | 'onboarding' | 'recovery' | 'ready';
 type AppMode = 'demo' | 'supabase';
 
 interface AuthContextValue {
@@ -30,12 +32,16 @@ interface AuthContextValue {
   user: AppUser | null;
   member: Member | null;
   error: string;
+  notice: string;
   authenticating: boolean;
   googleEnabled: boolean;
   clearError: () => void;
+  clearNotice: () => void;
   signInEmail: (email: string, password: string) => Promise<void>;
   signUpEmail: (email: string, password: string, name: string) => Promise<boolean>;
   signInGoogle: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<boolean>;
+  updatePassword: (password: string) => Promise<boolean>;
   signInDemo: (role: Role) => void;
   joinChoir: (code: string, voicePart: VoicePart, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -48,6 +54,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const DEMO_SESSION_KEY = 'tdv:demo-session';
 const MEMBER_CACHE_KEY = 'tdv:member-cache';
+const RECOVERY_PENDING_KEY = 'tdv:password-recovery-pending';
 
 interface DemoSession {
   role: Role;
@@ -117,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [authenticating, setAuthenticating] = useState(false);
 
   useEffect(() => {
@@ -180,11 +188,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        try {
+          sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
+        } catch {
+          // Armazenamento indisponível em modo privado.
+        }
+        if (session?.user) setUser(appUserFromSupabase(session.user));
+        setMember(null);
+        setError('');
+        setNotice('');
+        setStatus('recovery');
+        return;
+      }
       if (session?.user && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+        let recoveryPending = false;
+        try {
+          recoveryPending = sessionStorage.getItem(RECOVERY_PENDING_KEY) === '1';
+        } catch {
+          recoveryPending = false;
+        }
+        if (recoveryPending) {
+          setUser(appUserFromSupabase(session.user));
+          setStatus('recovery');
+          return;
+        }
         void hydrate(session.user);
         return;
       }
       if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        try {
+          sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+        } catch {
+          // Armazenamento indisponível em modo privado.
+        }
         setUser(null);
         setMember(null);
         setStatus('signedOut');
@@ -199,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInEmail = useCallback(async (email: string, password: string) => {
     setError('');
+    setNotice('');
     setAuthenticating(true);
     try {
       await supabaseSignInEmail(email, password);
@@ -212,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpEmail = useCallback(
     async (email: string, password: string, name: string): Promise<boolean> => {
       setError('');
+      setNotice('');
       setAuthenticating(true);
       try {
         const hasSession = await supabaseSignUpEmail(email, password, name);
@@ -231,11 +270,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInGoogle = useCallback(async () => {
     setError('');
+    setNotice('');
     setAuthenticating(true);
     try {
       await supabaseSignInGoogle();
     } catch (signInError) {
       setError(supabaseErrorMessage(signInError));
+    } finally {
+      setAuthenticating(false);
+    }
+  }, []);
+
+  const requestPasswordReset = useCallback(async (email: string): Promise<boolean> => {
+    setError('');
+    setNotice('');
+    setAuthenticating(true);
+    try {
+      await supabaseRequestPasswordReset(email);
+      return true;
+    } catch (resetError) {
+      setError(supabaseErrorMessage(resetError));
+      return false;
+    } finally {
+      setAuthenticating(false);
+    }
+  }, []);
+
+  const updatePassword = useCallback(async (password: string): Promise<boolean> => {
+    setError('');
+    setNotice('');
+    setAuthenticating(true);
+    try {
+      await supabaseUpdatePassword(password);
+      try {
+        sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+      } catch {
+        // Armazenamento indisponível em modo privado.
+      }
+      setNotice('Senha alterada. Entre com a nova senha.');
+      try {
+        await signOutSupabase();
+      } catch {
+        // A sessão de recuperação já pode ter expirado; o login continua válido.
+      }
+      setUser(null);
+      setMember(null);
+      setStatus('signedOut');
+      return true;
+    } catch (updateError) {
+      setError(supabaseErrorMessage(updateError));
+      return false;
     } finally {
       setAuthenticating(false);
     }
@@ -261,6 +345,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser({ uid: demo.id, name: demo.name, email: demo.email });
     setMember(demo);
     setError('');
+    setNotice('');
     setStatus('ready');
   }, []);
 
@@ -297,6 +382,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     localStorage.removeItem(MEMBER_CACHE_KEY);
+    try {
+      sessionStorage.removeItem(RECOVERY_PENDING_KEY);
+    } catch {
+      // Armazenamento indisponível em modo privado.
+    }
+    setNotice('');
     if (mode === 'supabase') {
       await signOutSupabase();
       return;
@@ -377,12 +468,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       member,
       error,
+      notice,
       authenticating,
       googleEnabled: googleAuthEnabled,
       clearError: () => setError(''),
+      clearNotice: () => setNotice(''),
       signInEmail,
       signUpEmail,
       signInGoogle,
+      requestPasswordReset,
+      updatePassword,
       signInDemo,
       joinChoir,
       signOut,
@@ -396,10 +491,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       member,
       error,
+      notice,
       authenticating,
       signInEmail,
       signUpEmail,
       signInGoogle,
+      requestPasswordReset,
+      updatePassword,
       signInDemo,
       joinChoir,
       signOut,

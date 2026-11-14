@@ -102,7 +102,7 @@ docs/             setup, arquitetura, segurança e aceite
 
 ## Segurança e privacidade
 
-- Login por e-mail/senha; Google é opcional e depende de OAuth configurado.
+- Login, cadastro e recuperação de senha por e-mail; Google é opcional e depende de OAuth configurado.
 - Papel de regente concedido no servidor por lista de e-mails (`app_secrets.regent_emails`); a área do regente atualiza membro e lista atomicamente pela RPC `set_regent_role`.
 - Entrada no coral por código de convite validado pela RPC `join_choir`.
 - RLS: leitura só para membros; escrita de conteúdo só para regente; voto só no próprio membro.

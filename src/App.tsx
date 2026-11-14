@@ -4,6 +4,7 @@ import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Onboarding } from './pages/Onboarding';
+import { ResetPassword } from './pages/ResetPassword';
 import { Practice } from './pages/Practice';
 import { Chat } from './pages/Chat';
 import { Mural } from './pages/Mural';
@@ -45,6 +46,7 @@ function ReadyRoutes() {
 function Gate() {
   const { status } = useAuth();
   if (status === 'loading') return <Splash />;
+  if (status === 'recovery') return <ResetPassword />;
   if (status === 'signedOut') return <Login />;
   if (status === 'onboarding') return <Onboarding />;
   return <ReadyRoutes />;
