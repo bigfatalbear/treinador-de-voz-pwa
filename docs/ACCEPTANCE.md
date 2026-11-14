@@ -7,7 +7,7 @@ decisão futura; não deve ser lido como concluído.
 |---|---|---|
 | Build | `npm run typecheck`, `npm test` e `npm run build` passam | Verificado localmente |
 | Backend | Migration, bucket, policies e Edge Function aplicados | Verificado no projeto Supabase |
-| Auth | Cadastro, login e recuperação de senha por e-mail; Google opcional | Fluxo de recuperação verificado na UI local; entrega do link a validar no e-mail real |
+| Auth | Cadastro, login e recuperação de senha por e-mail; Google opcional | Fluxo implícito verificado no deploy com token real; atualização de senha e retorno ao login confirmados |
 | Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test e UI |
 | Papéis | Regente por lista de e-mails; cliente não se promove | Verificado por smoke test |
 | Papéis | Regente promove/rebaixa membro; lista e papel mudam juntos; último regente protegido | Verificado por smoke SQL transacional e UI |
