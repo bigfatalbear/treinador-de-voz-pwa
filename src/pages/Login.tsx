@@ -178,8 +178,8 @@ export function Login() {
                     <p className="font-semibold">Verifique seu e-mail.</p>
                     <p>
                       Se este e-mail estiver cadastrado, enviamos um link para criar uma nova senha.
-                      Abra o link no mesmo navegador em que fez a solicitação. Verifique também a
-                      pasta de spam.
+                      Você pode abrir o link em qualquer navegador. Verifique também a pasta de
+                      spam.
                     </p>
                     <Button
                       type="button"

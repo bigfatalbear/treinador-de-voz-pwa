@@ -118,6 +118,27 @@ function readCachedMember(uid: string): Member | null {
   }
 }
 
+function readAuthRedirectError(): string {
+  if (typeof window === 'undefined') return '';
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const description =
+    hash.get('error_description') ||
+    search.get('error_description') ||
+    hash.get('error') ||
+    search.get('error') ||
+    '';
+  if (!description) return '';
+  const normalized = description.toLowerCase();
+  if (normalized.includes('expired') || normalized.includes('invalid')) {
+    return 'Este link expirou ou já foi usado. Solicite outro na tela de login.';
+  }
+  if (normalized.includes('redirect')) {
+    return 'O endereço de retorno do link não está autorizado. Solicite um novo link.';
+  }
+  return 'Não foi possível validar este link. Solicite outro na tela de login.';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const mode: AppMode = isSupabaseConfigured ? 'supabase' : 'demo';
   const [status, setStatus] = useState<AuthStatus>('loading');
@@ -129,6 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     ensureLocalSeed();
+    const redirectError = readAuthRedirectError();
+    if (redirectError) setError(redirectError);
     if (!isSupabaseConfigured || !supabase) {
       try {
         const raw = localStorage.getItem(DEMO_SESSION_KEY);
