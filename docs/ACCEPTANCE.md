@@ -10,8 +10,8 @@ decisão futura; não deve ser lido como concluído.
 | Auth | Cadastro e login por e-mail/senha; Google opcional | E-mail/senha verificado na API e na UI; Google não configurado |
 | Convite | Código correto entra; código errado é rejeitado | Verificado por smoke test e UI |
 | Papéis | Regente por lista de e-mails; cliente não se promove | Verificado por smoke test |
-| Papéis | Regente promove/rebaixa membro; lista e papel mudam juntos; último regente protegido | Verificado por smoke SQL transacional |
-| Vídeos | Regente publica link do YouTube; membro lê e player abre sob demanda | Implementado; UI e deploy a validar |
+| Papéis | Regente promove/rebaixa membro; lista e papel mudam juntos; último regente protegido | Verificado por smoke SQL transacional e UI |
+| Vídeos | Regente publica link do YouTube; membro lê e player abre sob demanda | Verificado na UI e no deploy (run 43130276336) |
 | RLS | Coralista lê conteúdo, não cria aviso e não altera `role` | Verificado por smoke test |
 | Chat | Salas geral + 4 naipes; coralista restrito ao próprio naipe | Verificado por smoke test |
 | Presença | Voto único por membro, alterável | RLS verificada; fluxo de UI a validar |
@@ -32,7 +32,7 @@ decisão futura; não deve ser lido como concluído.
 | Privacidade | Sem Analytics; retenção documentada; exclusão de conta | Implementado; limpeza automática pendente |
 | PIX | Botão visível, QR, copia-e-cola e CRC16 | Implementado; teste no app do banco pendente |
 | Acessibilidade | Teclado, rótulos, contraste, alvos de toque | Revisão manual; axe/Lighthouse pendentes |
-| GitHub Pages | Deploy por Actions com backend Supabase | Publicado e verificado (run 43127153839) |
+| GitHub Pages | Deploy por Actions com backend Supabase | Publicado e verificado (run 43130276336) |
 
 ## Critérios que exigem decisão futura
 
