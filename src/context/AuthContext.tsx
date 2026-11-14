@@ -4,6 +4,7 @@
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode
 } from 'react';
@@ -118,6 +119,13 @@ function readCachedMember(uid: string): Member | null {
   }
 }
 
+function hasRecoveryInUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  return hash.get('type') === 'recovery' || search.get('type') === 'recovery';
+}
+
 function readAuthRedirectError(): string {
   if (typeof window === 'undefined') return '';
   const search = new URLSearchParams(window.location.search);
@@ -147,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [authenticating, setAuthenticating] = useState(false);
+  const recoveryRef = useRef(hasRecoveryInUrl());
 
   useEffect(() => {
     ensureLocalSeed();
@@ -175,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const hydrate = async (supabaseUser: User) => {
+      if (recoveryRef.current) return;
       setUser(appUserFromSupabase(supabaseUser));
       setStatus('loading');
       try {
@@ -186,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const existing = await getMember(supabaseUser.id);
-        if (cancelled) return;
+        if (cancelled || recoveryRef.current) return;
         if (existing) {
           cacheMember(existing);
           setMember(existing);
@@ -196,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('onboarding');
         }
       } catch (memberError) {
-        if (cancelled) return;
+        if (cancelled || recoveryRef.current) return;
         const cached = readCachedMember(supabaseUser.id);
         if (cached && typeof navigator !== 'undefined' && !navigator.onLine) {
           setMember(cached);
@@ -212,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if (event === 'PASSWORD_RECOVERY') {
+        recoveryRef.current = true;
         try {
           sessionStorage.setItem(RECOVERY_PENDING_KEY, '1');
         } catch {
@@ -231,8 +242,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           recoveryPending = false;
         }
-        if (recoveryPending) {
+        if (recoveryPending || recoveryRef.current) {
+          recoveryRef.current = true;
           setUser(appUserFromSupabase(session.user));
+          setMember(null);
           setStatus('recovery');
           return;
         }
@@ -240,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+        recoveryRef.current = false;
         try {
           sessionStorage.removeItem(RECOVERY_PENDING_KEY);
         } catch {
@@ -258,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInEmail = useCallback(async (email: string, password: string) => {
+    recoveryRef.current = false;
     setError('');
     setNotice('');
     setAuthenticating(true);
@@ -272,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpEmail = useCallback(
     async (email: string, password: string, name: string): Promise<boolean> => {
+      recoveryRef.current = false;
       setError('');
       setNotice('');
       setAuthenticating(true);
@@ -292,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signInGoogle = useCallback(async () => {
+    recoveryRef.current = false;
     setError('');
     setNotice('');
     setAuthenticating(true);
@@ -325,6 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthenticating(true);
     try {
       await supabaseUpdatePassword(password);
+      recoveryRef.current = false;
       try {
         sessionStorage.removeItem(RECOVERY_PENDING_KEY);
       } catch {
@@ -349,6 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInDemo = useCallback((role: Role) => {
+    recoveryRef.current = false;
     ensureLocalSeed();
     let previous: DemoSession | null = null;
     try {
@@ -404,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    recoveryRef.current = false;
     localStorage.removeItem(MEMBER_CACHE_KEY);
     try {
       sessionStorage.removeItem(RECOVERY_PENDING_KEY);
